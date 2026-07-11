@@ -8,6 +8,7 @@ import ThemeToggle from './ThemeToggle'
 const menuItems = [
   { href: '/dashboard', label: 'Inici', icon: '📊' },
   { href: '/programacions', label: 'Programacions', icon: '📋' },
+  { href: '/programacions/imprimir', label: 'Imprimir programació', icon: '🖨️' },
   { href: '/unitats', label: 'Unitats Didàctiques', icon: '📚' },
   { href: '/examens', label: 'Repositori d\'Exàmens', icon: '📝' },
   { href: '/plantilles', label: 'Plantilles', icon: '📄' },

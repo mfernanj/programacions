@@ -21,6 +21,12 @@ model Usuari {
   examensCreats         Examen[]
 }
 
+model Configuracio {
+  id        String   @id @default(cuid())
+  nomCentre String   @default("Institut Educatiu")
+  updatedAt DateTime @updatedAt
+}
+
 model CursEscolar {
   id      String @id @default(cuid())
   anyInici Int

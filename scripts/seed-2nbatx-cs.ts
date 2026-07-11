@@ -27,18 +27,21 @@ export async function seed2nBatxCS(prisma: PrismaClient) {
     curs = await prisma.cursEscolar.update({ where: { id: curs.id }, data: { anyFi: year + 1, actiu: true } })
   }
 
-  const programacio = await prisma.programacio.create({
-    data: {
-      titol: 'Matemàtiques Aplicades a les Ciències Socials 2n Batxillerat - Programació didàctica',
-      descripcio: 'Programació didàctica per a 2n de Batxillerat - Matemàtiques Aplicades a les Ciències Socials.',
-      cursEscolarId: curs.id,
-      nivellId: nivell.id,
-      materiaId: materia.id,
-      estat: 'esborrany',
-      versio: 1,
-      autorId: (await prisma.usuari.findFirst())?.id || (await prisma.usuari.create({ data: { nom: 'Autor seed', email: 'seed@local', passwordHash: 'x' } })).id,
-    },
-  })
+  let programacio = await prisma.programacio.findFirst({ where: { titol: 'Matemàtiques Aplicades a les Ciències Socials 2n Batxillerat - Programació didàctica' } })
+  if (!programacio) {
+    programacio = await prisma.programacio.create({
+      data: {
+        titol: 'Matemàtiques Aplicades a les Ciències Socials 2n Batxillerat - Programació didàctica',
+        descripcio: 'Programació didàctica per a 2n de Batxillerat - Matemàtiques Aplicades a les Ciències Socials.',
+        cursEscolarId: curs.id,
+        nivellId: nivell.id,
+        materiaId: materia.id,
+        estat: 'esborrany',
+        versio: 1,
+        autorId: (await prisma.usuari.findFirst())?.id || (await prisma.usuari.create({ data: { nom: 'Autor seed', email: 'seed@local', passwordHash: 'x' } })).id,
+      },
+    })
+  }
 
   const unitats = [
     {
@@ -149,11 +152,15 @@ export async function seed2nBatxCS(prisma: PrismaClient) {
 
 // Allow running this script directly with `npx tsx scripts/seed-2nbatx-cs.ts`
 if (require.main === module) {
-  const { PrismaClient } = await import('@prisma/client')
-  const prisma = new PrismaClient()
-  seed2nBatxCS(prisma)
-    .catch((e) => {
-      console.error(e)
-      process.exit(1)
-    })
-    .finally(() => prisma.$disconnect())
+  import('@prisma/client').then(({ PrismaClient }) => {
+    const prisma = new PrismaClient()
+    seed2nBatxCS(prisma)
+      .catch((e) => {
+        console.error(e)
+        process.exit(1)
+      })
+      .finally(() => prisma.$disconnect())
+  }).catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })}

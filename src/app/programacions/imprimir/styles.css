@@ -1,0 +1,51 @@
+.print-page {
+  min-height: 100vh;
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-page article,
+  .print-page section,
+  .print-page header {
+    page-break-inside: avoid;
+  }
+
+  .no-print,
+  .rounded-xl,
+  .shadow-sm,
+  .shadow-md,
+  .border,
+  .border-gray-200,
+  .bg-gray-50,
+  .bg-white {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  button,
+  select,
+  .no-print a,
+  .no-print button {
+    display: none !important;
+  }
+}

@@ -27,18 +27,21 @@ export async function seed4tma(prisma: PrismaClient) {
   }
 
   // Create Programacio
-  const programacio = await prisma.programacio.create({
-    data: {
-      titol: 'Matemàtiques Aplicades 4t ESO - Programació didàctica',
-      descripcio: 'Programació didàctica per a 4t d\'ESO - Matemàtiques Aplicades (CV).',
-      cursEscolarId: curs.id,
-      nivellId: nivell.id,
-      materiaId: materia.id,
-      estat: 'esborrany',
-      versio: 1,
-      autorId: (await prisma.usuari.findFirst())?.id || (await prisma.usuari.create({ data: { nom: 'Autor seed', email: 'seed@local', passwordHash: 'x' } })).id,
-    },
-  })
+  let programacio = await prisma.programacio.findFirst({ where: { titol: 'Matemàtiques Aplicades 4t ESO - Programació didàctica' } })
+  if (!programacio) {
+    programacio = await prisma.programacio.create({
+      data: {
+        titol: 'Matemàtiques Aplicades 4t ESO - Programació didàctica',
+        descripcio: 'Programació didàctica per a 4t d\'ESO - Matemàtiques Aplicades (CV).',
+        cursEscolarId: curs.id,
+        nivellId: nivell.id,
+        materiaId: materia.id,
+        estat: 'esborrany',
+        versio: 1,
+        autorId: (await prisma.usuari.findFirst())?.id || (await prisma.usuari.create({ data: { nom: 'Autor seed', email: 'seed@local', passwordHash: 'x' } })).id,
+      },
+    })
+  }
 
   const unitats = [
     {
@@ -177,12 +180,16 @@ export async function seed4tma(prisma: PrismaClient) {
 
 // Allow running this script directly with `npx tsx scripts/seed-4tma.ts`
 if (require.main === module) {
-  const { PrismaClient } = await import('@prisma/client')
-  const prisma = new PrismaClient()
-  seed4tma(prisma)
-    .catch((e) => {
-      console.error(e)
-      process.exit(1)
-    })
-    .finally(() => prisma.$disconnect())
+  import('@prisma/client').then(({ PrismaClient }) => {
+    const prisma = new PrismaClient()
+    seed4tma(prisma)
+      .catch((e) => {
+        console.error(e)
+        process.exit(1)
+      })
+      .finally(() => prisma.$disconnect())
+  }).catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
 }
