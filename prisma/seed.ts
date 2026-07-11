@@ -143,6 +143,15 @@ async function main() {
   })
   console.log('✅ Plantilles creades')
 
+  // Seed 4t ESO Matemàtiques Aplicades programació
+  try {
+    const { seed4tma } = await import('../scripts/seed-4tma')
+    await seed4tma(prisma as any)
+    console.log('✅ Seed 4tMA executat des de prisma/seed.ts')
+  } catch (err) {
+    console.error('⚠️ Error executant seed 4tMA:', err)
+  }
+
   console.log('🎉 Seed completat!')
 }
 
