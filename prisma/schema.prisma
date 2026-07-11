@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuari {
+  id           String   @id @default(cuid())
+  nom          String
+  email        String   @unique
+  passwordHash String
+  rol          String   @default("membre") // "admin" | "membre"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  programacionsCreades  Programacio[]
+  versionsCreades       VersioProgramacio[]
+  examensCreats         Examen[]
+}
+
+model CursEscolar {
+  id      String @id @default(cuid())
+  anyInici Int
+  anyFi    Int
+  actiu    Boolean @default(false)
+
+  programacions Programacio[]
+  examens       Examen[]
+}
+
+model Nivell {
+  id   String @id @default(cuid())
+  codi String @unique // "1rESO", "2nESO", "3rESO", "4tESO", "1rBatx", "2nBatx"
+  nom  String // "1r d'ESO", "2n d'ESO", etc.
+
+  matèries    Materia[]
+  programacions Programacio[]
+  examens       Examen[]
+}
+
+model Materia {
+  id       String @id @default(cuid())
+  codi     String // "MatesESO", "MatesAcad", "MatesApl", "MatesI", "MatesII"
+  nom      String // "Matemàtiques", "Matemàtiques Acadèmiques", etc.
+  nivellId String
+  nivell   Nivell @relation(fields: [nivellId], references: [id])
+
+  blocs         Bloc[]
+  programacions Programacio[]
+  examens       Examen[]
+}
+
+model Bloc {
+  id        String @id @default(cuid())
+  codi      String // "BL1", "BL2", "BL3", "BL4", "BL5"
+  nom       String // "Processos, mètodes i actituds", "Nombres i àlgebra", etc.
+  materiaId String
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  continguts        Contingut[]
+  criterisAvaluacio CriteriAvaluacio[]
+}
+
+model Contingut {
+  id          String @id @default(cuid())
+  descripcio  String
+  curs        String // "1rESO", "2nESO", etc.
+  blocId      String
+  bloc        Bloc   @relation(fields: [blocId], references: [id])
+}
+
+model CriteriAvaluacio {
+  id           String @id @default(cuid())
+  codi         String // "BL2.1", "BL3.2", etc.
+  descripcio   String
+  competencies String // "CMCT, CAA, CSC" (competències clau associades)
+  blocId       String
+  bloc         Bloc   @relation(fields: [blocId], references: [id])
+}
+
+model Programacio {
+  id            String @id @default(cuid())
+  titol         String
+  descripcio    String?
+  cursEscolarId String
+  nivellId      String
+  materiaId     String
+  estat         String @default("esborrany") // "esborrany" | "publicat" | "finalitzat"
+  versio        Int    @default(1)
+  autorId       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cursEscolar CursEscolar @relation(fields: [cursEscolarId], references: [id])
+  nivell      Nivell      @relation(fields: [nivellId], references: [id])
+  materia     Materia     @relation(fields: [materiaId], references: [id])
+  autor       Usuari      @relation(fields: [autorId], references: [id])
+
+  unitatsDidactiques UnitatDidactica[]
+  metodologies       Metodologia[]
+  atencionsDiversitat AtencioDiversitat[]
+  versions           VersioProgramacio[]
+}
+
+model UnitatDidactica {
+  id               String  @id @default(cuid())
+  titol            String
+  temporitzacio    String  // "12 sessions", etc.
+  objectius        String
+  continguts       String
+  criterisAvaluacio String?
+  competencies     String?
+  activitats       String?
+  programacioId    String
+  programacio      Programacio @relation(fields: [programacioId], references: [id], onDelete: Cascade)
+  ordre            Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Metodologia {
+  id             String @id @default(cuid())
+  estrategies    String // Metodologies actives, expositives, etc.
+  recursos       String // Llibres, TIC, materials manipulatius
+  agrupaments    String // Individual, parelles, grups
+  avaluacio      String? // Instruments d'avaluació
+  programacioId  String @unique
+  programacio    Programacio @relation(fields: [programacioId], references: [id], onDelete: Cascade)
+}
+
+model AtencioDiversitat {
+  id                  String @id @default(cuid())
+  mesuresGenerals     String  // Mesures de resposta educativa
+  mesuresEspecifiques String?
+  adaptacions         String?
+  programacioId       String @unique
+  programacio         Programacio @relation(fields: [programacioId], references: [id], onDelete: Cascade)
+}
+
+model Examen {
+  id             String   @id @default(cuid())
+  titol          String
+  descripcio     String?
+  cursEscolarId  String
+  nivellId       String
+  materiaId      String
+  avaluacio      String   // "1a", "2a", "3a", "Extraordinaria"
+  tipus          String   @default("examen") // "examen", "recuperacio", "global"
+  dificultat     String   @default("mitja") // "facil", "mitja", "dificil"
+  fitxerPath     String?  // Ruta al fitxer PDF
+  etiquetes      String?  // JSON array d'etiquetes
+  autorId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cursEscolar CursEscolar @relation(fields: [cursEscolarId], references: [id])
+  nivell      Nivell      @relation(fields: [nivellId], references: [id])
+  materia     Materia     @relation(fields: [materiaId], references: [id])
+  autor       Usuari      @relation(fields: [autorId], references: [id])
+}
+
+model Plantilla {
+  id             String @id @default(cuid())
+  nom            String
+  descripcio     String?
+  estructuraJSON String // JSON amb l'estructura de la programació
+  nivellId       String?
+  materiaId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model VersioProgramacio {
+  id             String   @id @default(cuid())
+  programacioId  String
+  programacio    Programacio @relation(fields: [programacioId], references: [id], onDelete: Cascade)
+  numero         Int
+  data           DateTime @default(now())
+  canvis         String
+  contingutJSON  String?  // Snapshot de la programació en aquesta versió
+  autorId        String
+  autor          Usuari   @relation(fields: [autorId], references: [id])
+
+  @@unique([programacioId, numero])
+}

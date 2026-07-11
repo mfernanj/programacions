@@ -1,0 +1,488 @@
+'use client'
+
+import { useSession } from 'next-auth/react'
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import Sidebar from '@/components/Sidebar'
+import Link from 'next/link'
+
+interface UnitatDidactica {
+  id: string
+  titol: string
+  temporitzacio: string
+  objectius: string
+  continguts: string
+  criterisAvaluacio: string | null
+  competencies: string | null
+  activitats: string | null
+  ordre: number
+}
+
+interface Programacio {
+  id: string
+  titol: string
+  descripcio: string | null
+  estat: string
+  versio: number
+  nivell: { nom: string; codi: string }
+  materia: { nom: string; blocs: Array<{ id: string; codi: string; nom: string; criterisAvaluacio: Array<{ id: string; codi: string; descripcio: string }> }> }
+  cursEscolar: { anyInici: number; anyFi: number }
+  autor: { nom: string; email: string }
+  unitatsDidactiques: UnitatDidactica[]
+  metodologies: Array<{ estrategies: string; recursos: string; agrupaments: string; avaluacio: string | null }>
+  atencionsDiversitat: Array<{ mesuresGenerals: string; mesuresEspecifiques: string | null; adaptacions: string | null }>
+}
+
+export default function ProgramacioDetailPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const params = useParams()
+  const [programacio, setProgramacio] = useState<Programacio | null>(null)
+  const [novaUnitat, setNovaUnitat] = useState(false)
+  const [formUnitat, setFormUnitat] = useState({
+    titol: '', temporitzacio: '', objectius: '', continguts: '',
+    criterisAvaluacio: '', competencies: '', activitats: '',
+  })
+  const [editantUnitat, setEditantUnitat] = useState<string | null>(null)
+  const [unitatEnEdicio, setUnitatEnEdicio] = useState<Record<string, UnitatDidactica>>({})
+  const [editantProgramacio, setEditantProgramacio] = useState(false)
+  const [formProgramacio, setFormProgramacio] = useState({
+    titol: '', descripcio: '', estat: 'esborrany',
+  })
+
+  useEffect(() => {
+    if (status === 'unauthenticated') router.push('/')
+  }, [status, router])
+
+  useEffect(() => {
+    if (params.id) {
+      fetch(`/api/programacions/${params.id}`)
+        .then(res => res.json())
+        .then(setProgramacio)
+    }
+  }, [params.id])
+
+  useEffect(() => {
+    if (programacio) {
+      setFormProgramacio({
+        titol: programacio.titol,
+        descripcio: programacio.descripcio || '',
+        estat: programacio.estat,
+      })
+    }
+  }, [programacio])
+
+  const afegirUnitat = async () => {
+    const res = await fetch('/api/unitats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formUnitat,
+        programacioId: params.id,
+        ordre: (programacio?.unitatsDidactiques.length || 0) + 1,
+      }),
+    })
+    if (res.ok) {
+      setNovaUnitat(false)
+      setFormUnitat({ titol: '', temporitzacio: '', objectius: '', continguts: '', criterisAvaluacio: '', competencies: '', activitats: '' })
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+    }
+  }
+
+  const eliminarUnitat = async (id: string) => {
+    if (confirm('Estàs segur d\'eliminar aquesta unitat?')) {
+      await fetch(`/api/unitats?id=${id}`, { method: 'DELETE' })
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+    }
+  }
+
+  const iniciarEdicioUnitat = (unitat: UnitatDidactica) => {
+    setEditantUnitat(unitat.id)
+    setUnitatEnEdicio(prev => ({ ...prev, [unitat.id]: unitat }))
+  }
+
+  const canviUnitatEnEdicio = (id: string, field: keyof UnitatDidactica, value: string | number) => {
+    setUnitatEnEdicio(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value,
+      },
+    }))
+  }
+
+  const desarUnitat = async (id: string) => {
+    const unitat = unitatEnEdicio[id]
+    if (!unitat) return
+
+    const res = await fetch(`/api/unitats/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(unitat),
+    })
+
+    if (res.ok) {
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+      setEditantUnitat(null)
+    } else {
+      alert('Error desant la unitat')
+    }
+  }
+
+  const cancel·larEdicioUnitat = (id: string) => {
+    setEditantUnitat(null)
+    setUnitatEnEdicio(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  const desarProgramacio = async () => {
+    if (!programacio) return
+
+    const res = await fetch(`/api/programacions/${programacio.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titol: formProgramacio.titol,
+        descripcio: formProgramacio.descripcio,
+        estat: formProgramacio.estat,
+      }),
+    })
+
+    if (res.ok) {
+      const updated = await res.json()
+      setProgramacio(updated)
+      setEditantProgramacio(false)
+    } else {
+      alert('Error desant la programació')
+    }
+  }
+
+  const eliminarProgramacio = async () => {
+    if (!params.id) return
+    if (!confirm('Estàs segur d\'eliminar aquesta programació?')) return
+
+    const res = await fetch(`/api/programacions/${params.id}`, {
+      method: 'DELETE',
+    })
+
+    if (res.ok) {
+      router.push('/programacions')
+    } else {
+      alert('Error eliminant la programació')
+    }
+  }
+
+  if (status === 'loading' || !programacio) {
+    return <div className="flex min-h-screen items-center justify-center"><p>Carregant...</p></div>
+  }
+  if (status === 'unauthenticated') return null
+
+  return (
+    <div className="flex">
+      <Sidebar />
+      <main className="flex-1 bg-gray-50 p-8">
+        {/* Capçalera */}
+        <div className="mb-6 flex items-start justify-between">
+          <div className="flex-1 pr-4">
+            <Link href="/programacions" className="mb-2 inline-block text-sm text-primary hover:underline">← Tornar</Link>
+            {editantProgramacio ? (
+              <div>
+                <input
+                  type="text"
+                  value={formProgramacio.titol}
+                  onChange={(e) => setFormProgramacio({ ...formProgramacio, titol: e.target.value })}
+                  className="mb-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-xl font-semibold text-gray-900"
+                />
+                <textarea
+                  value={formProgramacio.descripcio}
+                  onChange={(e) => setFormProgramacio({ ...formProgramacio, descripcio: e.target.value })}
+                  rows={3}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
+                  placeholder="Descripció de la programació"
+                />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">{programacio.titol}</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  {programacio.nivell?.nom} · {programacio.materia?.nom} · Curs {programacio.cursEscolar?.anyInici}/{programacio.cursEscolar?.anyFi}
+                </p>
+                <p className="text-sm text-gray-500">Autor: {programacio.autor?.nom} · v{programacio.versio}</p>
+              </>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <select
+                value={formProgramacio.estat}
+                onChange={(e) => setFormProgramacio({ ...formProgramacio, estat: e.target.value })}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="esborrany">Esborrany</option>
+                <option value="publicat">Publicat</option>
+                <option value="finalitzat">Finalitzat</option>
+              </select>
+              {editantProgramacio ? (
+                <button
+                  type="button"
+                  onClick={desarProgramacio}
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark"
+                >
+                  Desa
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditantProgramacio(true)}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Edita
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={eliminarProgramacio}
+            >
+              Eliminar programació
+            </button>
+          </div>
+        </div>
+
+        {/* Descripció */}
+        {programacio.descripcio && (
+          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Descripció</h2>
+            <p className="text-gray-600">{programacio.descripcio}</p>
+          </div>
+        )}
+
+        {/* Unitats Didàctiques */}
+        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Unitats Didàctiques</h2>
+            <button
+              onClick={() => setNovaUnitat(true)}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark"
+            >
+              + Afegir unitat
+            </button>
+          </div>
+
+          {novaUnitat && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-3 font-medium text-gray-700">Nova unitat</h3>
+              <div className="space-y-3">
+                <input
+                  placeholder="Títol de la unitat"
+                  value={formUnitat.titol}
+                  onChange={e => setFormUnitat({...formUnitat, titol: e.target.value})}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  placeholder="Temporització (ex: 12 sessions)"
+                  value={formUnitat.temporitzacio}
+                  onChange={e => setFormUnitat({...formUnitat, temporitzacio: e.target.value})}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <textarea
+                  placeholder="Objectius"
+                  value={formUnitat.objectius}
+                  onChange={e => setFormUnitat({...formUnitat, objectius: e.target.value})}
+                  rows={3}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <textarea
+                  placeholder="Continguts"
+                  value={formUnitat.continguts}
+                  onChange={e => setFormUnitat({...formUnitat, continguts: e.target.value})}
+                  rows={3}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <textarea
+                  placeholder="Criteris d'avaluació"
+                  value={formUnitat.criterisAvaluacio}
+                  onChange={e => setFormUnitat({...formUnitat, criterisAvaluacio: e.target.value})}
+                  rows={2}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setNovaUnitat(false)} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Cancel·lar</button>
+                  <button onClick={afegirUnitat} className="rounded-md bg-primary px-3 py-1.5 text-sm text-white hover:bg-primary-dark">Guardar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {programacio.unitatsDidactiques.length === 0 ? (
+            <p className="text-gray-500">No hi ha unitats didàctiques encara.</p>
+          ) : (
+            <div className="space-y-4">
+              {programacio.unitatsDidactiques.map((unitat) => {
+                const enEdicio = editantUnitat === unitat.id
+                const unitatEdit = unitatEnEdicio[unitat.id] || unitat
+
+                return (
+                  <div key={unitat.id} className="rounded-lg border border-gray-200 p-4">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-medium text-gray-900">U{unitat.ordre}. {unitat.titol}</h3>
+                        <p className="text-sm text-gray-500">Temporització: {unitat.temporitzacio}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {enEdicio ? (
+                          <button
+                            type="button"
+                            onClick={() => cancel·larEdicioUnitat(unitat.id)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Cancel·lar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => iniciarEdicioUnitat(unitat)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Edita
+                          </button>
+                        )}
+                        <button
+                          onClick={() => eliminarUnitat(unitat.id)}
+                          className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+
+                    {enEdicio ? (
+                      <div className="space-y-3">
+                        <input
+                          value={unitatEdit.titol}
+                          onChange={(e) => canviUnitatEnEdicio(unitat.id, 'titol', e.target.value)}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Títol de la unitat"
+                        />
+                        <input
+                          value={unitatEdit.temporitzacio}
+                          onChange={(e) => canviUnitatEnEdicio(unitat.id, 'temporitzacio', e.target.value)}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Temporització"
+                        />
+                        <textarea
+                          value={unitatEdit.objectius}
+                          onChange={(e) => canviUnitatEnEdicio(unitat.id, 'objectius', e.target.value)}
+                          rows={3}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Objectius"
+                        />
+                        <textarea
+                          value={unitatEdit.continguts}
+                          onChange={(e) => canviUnitatEnEdicio(unitat.id, 'continguts', e.target.value)}
+                          rows={3}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Continguts"
+                        />
+                        <textarea
+                          value={unitatEdit.criterisAvaluacio || ''}
+                          onChange={(e) => canviUnitatEnEdicio(unitat.id, 'criterisAvaluacio', e.target.value)}
+                          rows={2}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Criteris d'avaluació"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => desarUnitat(unitat.id)}
+                          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark"
+                        >
+                          Desa canvis
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 text-sm text-gray-600 md:grid-cols-2">
+                        {unitat.temporitzacio && <p><strong>Temporització:</strong> {unitat.temporitzacio}</p>}
+                        {unitat.objectius && <p className="md:col-span-2"><strong>Objectius:</strong> {unitat.objectius}</p>}
+                        {unitat.continguts && <p className="md:col-span-2"><strong>Continguts:</strong> {unitat.continguts}</p>}
+                        {unitat.criterisAvaluacio && <p className="md:col-span-2"><strong>Criteris d'avaluació:</strong> {unitat.criterisAvaluacio}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Blocs i criteris d'avaluació */}
+        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Blocs i Criteris d'Avaluació</h2>
+          <div className="space-y-4">
+            {programacio.materia?.blocs?.map((bloc) => (
+              <div key={bloc.id} className="rounded-lg border border-gray-200 p-4">
+                <h3 className="mb-2 font-medium text-gray-900">{bloc.codi}: {bloc.nom}</h3>
+                {bloc.criterisAvaluacio.length > 0 ? (
+                  <ul className="space-y-1 text-sm text-gray-600">
+                    {bloc.criterisAvaluacio.map((criteri) => (
+                      <li key={criteri.id} className="ml-4 list-disc">
+                        <strong>{criteri.codi}</strong>: {criteri.descripcio}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-400">No hi ha criteris definits</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Metodologia */}
+        {programacio.metodologies?.[0] && (
+          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Metodologia</h2>
+            <div className="grid gap-4 text-sm text-gray-600 md:grid-cols-3">
+              <div>
+                <strong>Estratègies:</strong>
+                <p className="mt-1">{programacio.metodologies[0].estrategies}</p>
+              </div>
+              <div>
+                <strong>Recursos:</strong>
+                <p className="mt-1">{programacio.metodologies[0].recursos}</p>
+              </div>
+              <div>
+                <strong>Agrupaments:</strong>
+                <p className="mt-1">{programacio.metodologies[0].agrupaments}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Atenció a la diversitat */}
+        {programacio.atencionsDiversitat?.[0] && (
+          <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Atenció a la Diversitat</h2>
+            <div className="space-y-3 text-sm text-gray-600">
+              <div>
+                <strong>Mesures generals:</strong>
+                <p className="mt-1">{programacio.atencionsDiversitat[0].mesuresGenerals}</p>
+              </div>
+              {programacio.atencionsDiversitat[0].mesuresEspecifiques && (
+                <div>
+                  <strong>Mesures específiques:</strong>
+                  <p className="mt-1">{programacio.atencionsDiversitat[0].mesuresEspecifiques}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
