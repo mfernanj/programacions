@@ -41,6 +41,7 @@ export default function UnitatsPage() {
   const [unitats, setUnitats] = useState<UnitatDidactica[]>([])
   const [programacions, setProgramacions] = useState<ProgramacioRef[]>([])
   const [selectedProgramacioId, setSelectedProgramacioId] = useState<string>('')
+  const [isClient, setIsClient] = useState(false)
   const [editantUnitat, setEditantUnitat] = useState<string | null>(null)
   const [unitatEnEdicio, setUnitatEnEdicio] = useState<Record<string, UnitatDidactica>>({})
 
@@ -56,6 +57,10 @@ export default function UnitatsPage() {
       router.push('/')
     }
   }, [status, router])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
     // fetch programacions for the filter
@@ -272,8 +277,8 @@ export default function UnitatsPage() {
                   ) : (
                     <div className="grid gap-3 text-sm text-gray-600">
                       <p><strong>Temporització:</strong> {unitat.temporitzacio}</p>
-                      {unitat.dataInici && <p><strong>Inici:</strong> {new Date(unitat.dataInici).toLocaleDateString()}</p>}
-                      {unitat.dataFi && <p><strong>Fi:</strong> {new Date(unitat.dataFi).toLocaleDateString()}</p>}
+                      {unitat.dataInici && <p><strong>Inici:</strong> {isClient ? new Date(unitat.dataInici).toLocaleDateString() : unitat.dataInici.slice(0,10)}</p>}
+                      {unitat.dataFi && <p><strong>Fi:</strong> {isClient ? new Date(unitat.dataFi).toLocaleDateString() : unitat.dataFi.slice(0,10)}</p>}
                       <p><strong>Objectius:</strong> {unitat.objectius}</p>
                       <p><strong>Continguts:</strong> {unitat.continguts}</p>
                       {unitat.criterisAvaluacio && <p><strong>Criteris:</strong> {unitat.criterisAvaluacio}</p>}
