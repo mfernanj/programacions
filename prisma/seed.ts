@@ -152,6 +152,15 @@ async function main() {
     console.error('⚠️ Error executant seed 4tMA:', err)
   }
 
+  // Seed 2n Batx Matemàtiques Aplicades a les Ciències Socials programació
+  try {
+    const { seed2nBatxCS } = await import('../scripts/seed-2nbatx-cs')
+    await seed2nBatxCS(prisma as any)
+    console.log('✅ Seed 2n Batx CS executat des de prisma/seed.ts')
+  } catch (err) {
+    console.error('⚠️ Error executant seed 2n Batx CS:', err)
+  }
+
   console.log('🎉 Seed completat!')
 }
 
