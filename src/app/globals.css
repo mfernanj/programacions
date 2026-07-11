@@ -1,12 +1,45 @@
 @import "tailwindcss";
 
-@theme {
+:root {
   --color-primary: #2563eb;
   --color-primary-dark: #1d4ed8;
   --color-secondary: #64748b;
   --color-background: #f8fafc;
   --color-card: #ffffff;
+  --color-text: #0f172a;
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-danger: #dc2626;
 }
+
+[data-theme="dark"] {
+  --color-primary: #60a5fa;
+  --color-primary-dark: #3b82f6;
+  --color-secondary: #9ca3af;
+  --color-background: #0b1220;
+  --color-card: #071024;
+  --color-text: #e6eef8;
+}
+
+/* Helper classes that map design tokens to simple utility classes used in the app */
+.bg-background { background-color: var(--color-background) }
+.bg-card { background-color: var(--color-card) }
+.bg-primary { background-color: var(--color-primary) }
+.hover\:bg-primary-dark:hover { background-color: var(--color-primary-dark) }
+.text-primary { color: var(--color-primary) }
+.text-on-background { color: var(--color-text) }
+
+/* Ensure body uses the CSS variable for text color */
+body { color: var(--color-text) }
+
+/* Dark-mode overrides for common Tailwind utility classes used in the app */
+[data-theme="dark"] .bg-white { background-color: var(--color-card) !important }
+[data-theme="dark"] .text-gray-900 { color: var(--color-text) !important }
+[data-theme="dark"] .text-gray-800 { color: var(--color-text) !important }
+[data-theme="dark"] .text-gray-700 { color: var(--color-secondary) !important }
+[data-theme="dark"] .text-gray-600 { color: #9aa8b9 !important }
+[data-theme="dark"] .text-gray-500 { color: #94a3b8 !important }
+[data-theme="dark"] .border-gray-300 { border-color: rgba(148,163,184,0.12) !important }
+[data-theme="dark"] .bg-gray-50 { background-color: rgba(255,255,255,0.02) !important }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: rgba(255,255,255,0.03) !important }
+[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: rgba(255,255,255,0.02) !important }

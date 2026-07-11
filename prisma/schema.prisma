@@ -106,9 +106,11 @@ model Programacio {
 }
 
 model UnitatDidactica {
-  id               String  @id @default(cuid())
+  id               String   @id @default(cuid())
   titol            String
-  temporitzacio    String  // "12 sessions", etc.
+  temporitzacio    String   // "12 sessions", etc.
+  dataInici        DateTime?
+  dataFi           DateTime?
   objectius        String
   continguts       String
   criterisAvaluacio String?

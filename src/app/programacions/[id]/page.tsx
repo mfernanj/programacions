@@ -6,10 +6,17 @@ import { useRouter, useParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
 
+const formatDateForInput = (value?: string | null) => {
+  if (!value) return ''
+  return value.slice(0, 10)
+}
+
 interface UnitatDidactica {
   id: string
   titol: string
   temporitzacio: string
+  dataInici?: string | null
+  dataFi?: string | null
   objectius: string
   continguts: string
   criterisAvaluacio: string | null
@@ -40,7 +47,7 @@ export default function ProgramacioDetailPage() {
   const [programacio, setProgramacio] = useState<Programacio | null>(null)
   const [novaUnitat, setNovaUnitat] = useState(false)
   const [formUnitat, setFormUnitat] = useState({
-    titol: '', temporitzacio: '', objectius: '', continguts: '',
+    titol: '', temporitzacio: '', dataInici: '', dataFi: '', objectius: '', continguts: '',
     criterisAvaluacio: '', competencies: '', activitats: '',
   })
   const [editantUnitat, setEditantUnitat] = useState<string | null>(null)
@@ -79,14 +86,17 @@ export default function ProgramacioDetailPage() {
       body: JSON.stringify({
         ...formUnitat,
         programacioId: params.id,
-        ordre: (programacio?.unitatsDidactiques.length || 0) + 1,
+        ordre: ((programacio?.unitatsDidactiques?.length || 0) + 1),
       }),
     })
     if (res.ok) {
       setNovaUnitat(false)
-      setFormUnitat({ titol: '', temporitzacio: '', objectius: '', continguts: '', criterisAvaluacio: '', competencies: '', activitats: '' })
-      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
-      setProgramacio(updated)
+      setFormUnitat({ titol: '', temporitzacio: '', dataInici: '', dataFi: '', objectius: '', continguts: '', criterisAvaluacio: '', competencies: '', activitats: '' })
+      const updatedRes = await fetch(`/api/programacions/${params.id}`)
+      if (updatedRes.ok) {
+        const updated = await updatedRes.json()
+        setProgramacio(updated)
+      }
     }
   }
 
@@ -120,15 +130,31 @@ export default function ProgramacioDetailPage() {
     const res = await fetch(`/api/unitats/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(unitat),
+      body: JSON.stringify({
+        id: unitat.id,
+        titol: unitat.titol,
+        temporitzacio: unitat.temporitzacio,
+        dataInici: unitat.dataInici || undefined,
+        dataFi: unitat.dataFi || undefined,
+        objectius: unitat.objectius,
+        continguts: unitat.continguts,
+        criterisAvaluacio: unitat.criterisAvaluacio,
+        competencies: unitat.competencies,
+        activitats: unitat.activitats,
+        ordre: unitat.ordre,
+      }),
     })
 
     if (res.ok) {
       const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
-      setProgramacio(updated)
+      if (updated && updated.unitatsDidactiques) {
+        setProgramacio(updated)
+      }
       setEditantUnitat(null)
     } else {
-      alert('Error desant la unitat')
+      const errorText = await res.text()
+      console.error('Error desant la unitat:', res.status, errorText)
+      alert('Error desant la unitat. Revisa la consola per a més detalls.')
     }
   }
 
@@ -155,8 +181,11 @@ export default function ProgramacioDetailPage() {
     })
 
     if (res.ok) {
-      const updated = await res.json()
-      setProgramacio(updated)
+      const updatedRes = await fetch(`/api/programacions/${programacio.id}`)
+      if (updatedRes.ok) {
+        const updated = await updatedRes.json()
+        setProgramacio(updated)
+      }
       setEditantProgramacio(false)
     } else {
       alert('Error desant la programació')
@@ -219,6 +248,12 @@ export default function ProgramacioDetailPage() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex gap-2">
+              <Link
+                href={`/programacions/${params.id}/calendari`}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Calendari
+              </Link>
               <select
                 value={formProgramacio.estat}
                 onChange={(e) => setFormProgramacio({ ...formProgramacio, estat: e.target.value })}
@@ -291,6 +326,26 @@ export default function ProgramacioDetailPage() {
                   onChange={e => setFormUnitat({...formUnitat, temporitzacio: e.target.value})}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-sm text-gray-700">
+                    Data d'inici
+                    <input
+                      type="date"
+                      value={formUnitat.dataInici}
+                      onChange={e => setFormUnitat({...formUnitat, dataInici: e.target.value})}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm text-gray-700">
+                    Data de finalització
+                    <input
+                      type="date"
+                      value={formUnitat.dataFi}
+                      onChange={e => setFormUnitat({...formUnitat, dataFi: e.target.value})}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                </div>
                 <textarea
                   placeholder="Objectius"
                   value={formUnitat.objectius}
@@ -320,11 +375,11 @@ export default function ProgramacioDetailPage() {
             </div>
           )}
 
-          {programacio.unitatsDidactiques.length === 0 ? (
+          {programacio.unitatsDidactiques?.length === 0 ? (
             <p className="text-gray-500">No hi ha unitats didàctiques encara.</p>
           ) : (
             <div className="space-y-4">
-              {programacio.unitatsDidactiques.map((unitat) => {
+              {programacio.unitatsDidactiques?.map((unitat) => {
                 const enEdicio = editantUnitat === unitat.id
                 const unitatEdit = unitatEnEdicio[unitat.id] || unitat
 
@@ -376,6 +431,26 @@ export default function ProgramacioDetailPage() {
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                           placeholder="Temporització"
                         />
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="block text-sm text-gray-700">
+                            Data d'inici
+                            <input
+                              type="date"
+                              value={formatDateForInput(unitatEdit.dataInici)}
+                              onChange={(e) => canviUnitatEnEdicio(unitat.id, 'dataInici', e.target.value)}
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                            />
+                          </label>
+                          <label className="block text-sm text-gray-700">
+                            Data de finalització
+                            <input
+                              type="date"
+                              value={formatDateForInput(unitatEdit.dataFi)}
+                              onChange={(e) => canviUnitatEnEdicio(unitat.id, 'dataFi', e.target.value)}
+                              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                            />
+                          </label>
+                        </div>
                         <textarea
                           value={unitatEdit.objectius}
                           onChange={(e) => canviUnitatEnEdicio(unitat.id, 'objectius', e.target.value)}
@@ -408,6 +483,12 @@ export default function ProgramacioDetailPage() {
                     ) : (
                       <div className="grid gap-2 text-sm text-gray-600 md:grid-cols-2">
                         {unitat.temporitzacio && <p><strong>Temporització:</strong> {unitat.temporitzacio}</p>}
+                        {(unitat.dataInici || unitat.dataFi) && (
+                          <p>
+                            {unitat.dataInici && <span><strong>Inici:</strong> {new Date(unitat.dataInici).toLocaleDateString()}</span>}
+                            {unitat.dataFi && <span className="ml-4"><strong>Fi:</strong> {new Date(unitat.dataFi).toLocaleDateString()}</span>}
+                          </p>
+                        )}
                         {unitat.objectius && <p className="md:col-span-2"><strong>Objectius:</strong> {unitat.objectius}</p>}
                         {unitat.continguts && <p className="md:col-span-2"><strong>Continguts:</strong> {unitat.continguts}</p>}
                         {unitat.criterisAvaluacio && <p className="md:col-span-2"><strong>Criteris d'avaluació:</strong> {unitat.criterisAvaluacio}</p>}

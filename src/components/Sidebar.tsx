@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import ThemeToggle from './ThemeToggle'
 
 const menuItems = [
   { href: '/dashboard', label: 'Inici', icon: '📊' },
@@ -18,11 +19,14 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-white shadow-lg">
-      <div className="flex items-center gap-2 border-b px-6 py-4">
+      <div className="flex items-center justify-between gap-2 border-b px-6 py-4">
         <span className="text-2xl">📐</span>
         <div>
           <h2 className="text-sm font-bold text-gray-800">Programacions</h2>
           <p className="text-xs text-gray-500">Dept. Matemàtiques</p>
+        </div>
+        <div>
+          <ThemeToggle />
         </div>
       </div>
 

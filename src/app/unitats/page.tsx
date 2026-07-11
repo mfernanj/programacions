@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 
+const formatDateForInput = (value?: string | null) => {
+  if (!value) return ''
+  return value.slice(0, 10)
+}
+
 interface ProgramacioRef {
   id: string
   titol: string
@@ -19,6 +24,8 @@ interface UnitatDidactica {
   id: string
   titol: string
   temporitzacio: string
+  dataInici?: string | null
+  dataFi?: string | null
   objectius: string
   continguts: string
   criterisAvaluacio: string | null
@@ -176,6 +183,26 @@ export default function UnitatsPage() {
                         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                         placeholder="Temporització"
                       />
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="block text-sm text-gray-700">
+                          Data d'inici
+                          <input
+                            type="date"
+                            value={formatDateForInput(unitatEdit.dataInici)}
+                            onChange={(e) => canviUnitatEnEdicio(unitat.id, 'dataInici', e.target.value)}
+                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="block text-sm text-gray-700">
+                          Data de finalització
+                          <input
+                            type="date"
+                            value={formatDateForInput(unitatEdit.dataFi)}
+                            onChange={(e) => canviUnitatEnEdicio(unitat.id, 'dataFi', e.target.value)}
+                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </label>
+                      </div>
                       <textarea
                         value={unitatEdit.objectius}
                         onChange={(e) => canviUnitatEnEdicio(unitat.id, 'objectius', e.target.value)}
@@ -217,6 +244,8 @@ export default function UnitatsPage() {
                   ) : (
                     <div className="grid gap-3 text-sm text-gray-600">
                       <p><strong>Temporització:</strong> {unitat.temporitzacio}</p>
+                      {unitat.dataInici && <p><strong>Inici:</strong> {new Date(unitat.dataInici).toLocaleDateString()}</p>}
+                      {unitat.dataFi && <p><strong>Fi:</strong> {new Date(unitat.dataFi).toLocaleDateString()}</p>}
                       <p><strong>Objectius:</strong> {unitat.objectius}</p>
                       <p><strong>Continguts:</strong> {unitat.continguts}</p>
                       {unitat.criterisAvaluacio && <p><strong>Criteris:</strong> {unitat.criterisAvaluacio}</p>}

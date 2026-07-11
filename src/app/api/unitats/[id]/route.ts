@@ -12,23 +12,53 @@ export async function PUT(
   }
 
   const { id } = await params
-  const data = await request.json()
 
-  const unitat = await prisma.unitatDidactica.update({
-    where: { id },
-    data: {
-      titol: data.titol,
-      temporitzacio: data.temporitzacio,
-      objectius: data.objectius,
-      continguts: data.continguts,
-      criterisAvaluacio: data.criterisAvaluacio,
-      competencies: data.competencies,
-      activitats: data.activitats,
-      ordre: data.ordre,
-    },
-  })
+  try {
+    const raw = await request.text()
+    console.debug('PUT /api/unitats/[id] raw body:', raw)
+    let payload: any = {}
+    try {
+      payload = raw ? JSON.parse(raw) : {}
+    } catch (e) {
+      console.debug('PUT /api/unitats/[id] JSON parse error:', e)
+      return NextResponse.json({ error: 'Payload JSON invalid' }, { status: 400 })
+    }
 
-  return NextResponse.json(unitat)
+    console.debug('PUT /api/unitats/[id] payload (parsed):', payload)
+
+    const isValidDate = (v: any) => {
+      if (!v) return false
+      const t = Date.parse(v)
+      return !isNaN(t)
+    }
+
+    const safeData: any = {
+      titol: payload.titol,
+      temporitzacio: payload.temporitzacio,
+      dataInici: isValidDate(payload.dataInici) ? new Date(payload.dataInici) : null,
+      dataFi: isValidDate(payload.dataFi) ? new Date(payload.dataFi) : null,
+      objectius: payload.objectius,
+      continguts: payload.continguts,
+      criterisAvaluacio: payload.criterisAvaluacio,
+      competencies: payload.competencies,
+      activitats: payload.activitats,
+    }
+
+    if (payload.ordre !== undefined) {
+      const parsedOrdre = typeof payload.ordre === 'number' ? payload.ordre : parseInt(String(payload.ordre), 10)
+      if (!isNaN(parsedOrdre)) safeData.ordre = parsedOrdre
+    }
+
+    const unitat = await prisma.unitatDidactica.update({
+      where: { id },
+      data: safeData,
+    })
+
+    return NextResponse.json(unitat)
+  } catch (err: any) {
+    console.error('PUT /api/unitats/[id] error:', err)
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 })
+  }
 }
 
 export async function DELETE(

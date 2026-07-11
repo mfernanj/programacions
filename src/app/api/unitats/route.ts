@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     data: {
       titol: data.titol,
       temporitzacio: data.temporitzacio,
+      dataInici: data.dataInici ? new Date(data.dataInici) : undefined,
+      dataFi: data.dataFi ? new Date(data.dataFi) : undefined,
       objectius: data.objectius,
       continguts: data.continguts,
       criterisAvaluacio: data.criterisAvaluacio,
@@ -72,6 +74,8 @@ export async function PUT(request: Request) {
     data: {
       titol: data.titol,
       temporitzacio: data.temporitzacio,
+      dataInici: data.dataInici ? new Date(data.dataInici) : null,
+      dataFi: data.dataFi ? new Date(data.dataFi) : null,
       objectius: data.objectius,
       continguts: data.continguts,
       criterisAvaluacio: data.criterisAvaluacio,
