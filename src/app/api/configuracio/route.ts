@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
-    const session = await auth(request)
+    const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
     }
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const session = await auth(request)
+    const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
     }
