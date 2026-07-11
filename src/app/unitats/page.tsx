@@ -39,11 +39,14 @@ export default function UnitatsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [unitats, setUnitats] = useState<UnitatDidactica[]>([])
+  const [programacions, setProgramacions] = useState<ProgramacioRef[]>([])
+  const [selectedProgramacioId, setSelectedProgramacioId] = useState<string>('')
   const [editantUnitat, setEditantUnitat] = useState<string | null>(null)
   const [unitatEnEdicio, setUnitatEnEdicio] = useState<Record<string, UnitatDidactica>>({})
 
-  const carregarUnitats = async () => {
-    const res = await fetch('/api/unitats')
+  const carregarUnitats = async (programacioId?: string) => {
+    const url = programacioId ? `/api/unitats?programacioId=${programacioId}` : '/api/unitats'
+    const res = await fetch(url)
     const data = await res.json()
     setUnitats(data)
   }
@@ -55,7 +58,13 @@ export default function UnitatsPage() {
   }, [status, router])
 
   useEffect(() => {
-    carregarUnitats()
+    // fetch programacions for the filter
+    const carregarProgramacions = async () => {
+      const res = await fetch('/api/programacions')
+      const data = await res.json()
+      setProgramacions(data)
+    }
+    carregarProgramacions()
   }, [])
 
   const iniciarEdicioUnitat = (unitat: UnitatDidactica) => {
@@ -128,9 +137,28 @@ export default function UnitatsPage() {
           </Link>
         </div>
 
+        <div className="mb-6 flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Filtra per programació:</label>
+          <select
+            value={selectedProgramacioId}
+            onChange={(e) => {
+              const id = e.target.value
+              setSelectedProgramacioId(id)
+              if (id) carregarUnitats(id)
+              else setUnitats([])
+            }}
+            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="">-- Tria una programació --</option>
+            {programacions.map((p) => (
+              <option key={p.id} value={p.id}>{p.titol} ({p.nivell.nom} · {p.materia.nom})</option>
+            ))}
+          </select>
+        </div>
+
         {unitats.length === 0 ? (
           <div className="rounded-lg bg-white p-12 text-center shadow-md">
-            <p className="text-lg text-gray-500">No hi ha unitats didàctiques disponibles.</p>
+            <p className="text-lg text-gray-500">No hi ha unitats didàctiques per a la programació seleccionada.</p>
             <p className="mt-2 text-sm text-gray-400">Crea-les des de la pàgina de detall d'una programació.</p>
           </div>
         ) : (
