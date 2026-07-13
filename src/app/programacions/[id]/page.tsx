@@ -45,6 +45,7 @@ interface Programacio {
   descripcio: string | null
   estat: string
   versio: number
+  cursEscolarId: string
   nivell: { nom: string; codi: string }
   materia: { nom: string; blocs: Array<{ id: string; codi: string; nom: string; criterisAvaluacio: Array<{ id: string; codi: string; descripcio: string }> }> }
   cursEscolar: { anyInici: number; anyFi: number }
@@ -68,8 +69,9 @@ export default function ProgramacioDetailPage() {
   const [unitatEnEdicio, setUnitatEnEdicio] = useState<Record<string, UnitatDidactica>>({})
   const [editantProgramacio, setEditantProgramacio] = useState(false)
   const [formProgramacio, setFormProgramacio] = useState({
-    titol: '', descripcio: '', estat: 'esborrany',
+    titol: '', descripcio: '', estat: 'esborrany', cursEscolarId: '',
   })
+  const [cursos, setCursos] = useState<any[]>([])
 
   // Estats per a situacions d'aprenentatge
   const [editantSituacio, setEditantSituacio] = useState<string | null>(null)
@@ -104,9 +106,14 @@ export default function ProgramacioDetailPage() {
         titol: programacio.titol,
         descripcio: programacio.descripcio || '',
         estat: programacio.estat,
+        cursEscolarId: programacio.cursEscolarId || '',
       })
     }
   }, [programacio])
+
+  useEffect(() => {
+    fetch('/api/cursos').then(r => r.json()).then(setCursos)
+  }, [])
 
   const afegirUnitat = async () => {
     const res = await fetch('/api/unitats', {
@@ -312,6 +319,7 @@ export default function ProgramacioDetailPage() {
         titol: formProgramacio.titol,
         descripcio: formProgramacio.descripcio,
         estat: formProgramacio.estat,
+        cursEscolarId: formProgramacio.cursEscolarId,
       }),
     })
 
@@ -370,6 +378,16 @@ export default function ProgramacioDetailPage() {
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
                   placeholder="Descripció de la programació"
                 />
+                <select
+                  value={formProgramacio.cursEscolarId}
+                  onChange={(e) => setFormProgramacio({ ...formProgramacio, cursEscolarId: e.target.value })}
+                  className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Curs escolar</option>
+                  {cursos.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.anyInici}/{c.anyFi} {c.actiu ? '(actiu)' : ''}</option>
+                  ))}
+                </select>
               </div>
             ) : (
               <>

@@ -72,18 +72,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Programació origen no trobada' }, { status: 404 })
     }
 
-    // Deep copy amb transacció
-    const programacio = await prisma.$transaction(async (tx) => {
-      const novaProg = await tx.programacio.create({
-        data: {
-          titol: data.titol || original.titol,
-          descripcio: data.descripcio || original.descripcio,
-          cursEscolarId: cursEscolar.id,
-          nivellId: original.nivellId,
-          materiaId: original.materiaId,
-          autorId: session.user.id,
-        },
-      })
+// Deep copy amb transacció
+     const programacio = await prisma.$transaction(async (tx) => {
+       // Generar títol amb -còpia si és el mateix que l'original
+       let titol = data.titol
+       if (titol === original.titol) {
+         titol = `${original.titol} - còpia`
+       }
+       
+       const novaProg = await tx.programacio.create({
+         data: {
+           titol,
+           descripcio: data.descripcio || original.descripcio,
+           cursEscolarId: cursEscolar.id,
+           nivellId: original.nivellId,
+           materiaId: original.materiaId,
+           autorId: session.user.id,
+         },
+       })
 
       // Copiar unitats didàctiques i SA
       for (const unitat of original.unitatsDidactiques) {

@@ -50,13 +50,38 @@ export async function PUT(
   const { id } = await params
   const data = await request.json()
 
+  const updateData: any = {
+    titol: data.titol,
+    descripcio: data.descripcio,
+    estat: data.estat,
+  }
+
+  // Si es canvia el curs escolar
+  if (data.cursEscolarId) {
+    // Obtenir el curs escolar antic
+    const oldProg = await prisma.programacio.findUnique({
+      where: { id },
+      select: { cursEscolarId: true },
+    })
+
+    updateData.cursEscolarId = data.cursEscolarId
+
+    // Comprovar si el curs antic queda buit
+    if (oldProg?.cursEscolarId !== data.cursEscolarId) {
+      const count = await prisma.programacio.count({
+        where: { cursEscolarId: oldProg?.cursEscolarId },
+      })
+      if (count === 0) {
+        await prisma.cursEscolar.delete({
+          where: { id: oldProg?.cursEscolarId },
+        })
+      }
+    }
+  }
+
   const programacio = await prisma.programacio.update({
     where: { id },
-    data: {
-      titol: data.titol,
-      descripcio: data.descripcio,
-      estat: data.estat,
-    },
+    data: updateData,
   })
 
   return NextResponse.json(programacio)
