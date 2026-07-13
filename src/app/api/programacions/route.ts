@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { createProgramacioVersion } from '@/lib/versions'
+
+const validSchoolYear = (anyInici: unknown, anyFi: unknown) =>
+  typeof anyInici === 'number' && typeof anyFi === 'number' &&
+  Number.isInteger(anyInici) && Number.isInteger(anyFi) && anyFi === anyInici + 1
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -13,7 +19,7 @@ export async function GET(request: Request) {
   const materiaId = searchParams.get('materiaId')
   const cursEscolarId = searchParams.get('cursEscolarId')
 
-  const where: any = {}
+  const where: Prisma.ProgramacioWhereInput = {}
   if (nivellId) where.nivellId = nivellId
   if (materiaId) where.materiaId = materiaId
   if (cursEscolarId) where.cursEscolarId = cursEscolarId
@@ -44,6 +50,10 @@ export async function POST(request: Request) {
   // Gestionar curs escolar: buscar o crear
   const anyInici = data.anyInici
   const anyFi = data.anyFi
+
+  if (!validSchoolYear(anyInici, anyFi) || typeof data.titol !== 'string' || !data.titol.trim()) {
+    return NextResponse.json({ error: 'Dades de programació no vàlides' }, { status: 400 })
+  }
   
   let cursEscolar = await prisma.cursEscolar.findFirst({
     where: { anyInici, anyFi },
@@ -97,6 +107,8 @@ export async function POST(request: Request) {
           data: {
             titol: unitat.titol,
             temporitzacio: unitat.temporitzacio,
+            dataInici: unitat.dataInici,
+            dataFi: unitat.dataFi,
             objectius: unitat.objectius,
             continguts: unitat.continguts,
             criterisAvaluacio: unitat.criterisAvaluacio,
@@ -170,7 +182,16 @@ export async function POST(request: Request) {
       })
     })
 
+    if (programacio) await createProgramacioVersion({ programacioId: programacio.id, autorId: session.user.id, canvis: 'Programació creada a partir d’una còpia', initial: true })
     return NextResponse.json(programacio, { status: 201 })
+  }
+
+  const materia = await prisma.materia.findFirst({
+    where: { id: data.materiaId, nivellId: data.nivellId },
+    select: { id: true },
+  })
+  if (!materia) {
+    return NextResponse.json({ error: 'La matèria no correspon al nivell seleccionat' }, { status: 400 })
   }
 
   // Crear programació buida (sense copiar)
@@ -190,5 +211,6 @@ export async function POST(request: Request) {
     },
   })
 
+  await createProgramacioVersion({ programacioId: programacio.id, autorId: session.user.id, canvis: 'Programació creada', initial: true })
   return NextResponse.json(programacio, { status: 201 })
 }

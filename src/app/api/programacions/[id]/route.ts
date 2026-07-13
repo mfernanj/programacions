@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { canManage } from '@/lib/permissions'
+import { createProgramacioVersion } from '@/lib/versions'
 
 export async function GET(
   request: Request,
@@ -27,7 +30,7 @@ export async function GET(
       },
       metodologies: true,
       atencionsDiversitat: true,
-      versions: { orderBy: { numero: 'desc' }, take: 5 },
+      versions: { include: { autor: { select: { nom: true } } }, orderBy: { numero: 'desc' }, take: 10 },
     },
   })
 
@@ -50,7 +53,13 @@ export async function PUT(
   const { id } = await params
   const data = await request.json()
 
-  const updateData: any = {
+  const existing = await prisma.programacio.findUnique({ where: { id }, select: { autorId: true, cursEscolarId: true } })
+  if (!existing) return NextResponse.json({ error: 'No trobada' }, { status: 404 })
+  if (!canManage(existing.autorId, session.user)) {
+    return NextResponse.json({ error: 'No tens permís per editar aquesta programació' }, { status: 403 })
+  }
+
+  const updateData: Prisma.ProgramacioUncheckedUpdateInput = {
     titol: data.titol,
     descripcio: data.descripcio,
     estat: data.estat,
@@ -59,30 +68,20 @@ export async function PUT(
   // Si es canvia el curs escolar
   if (data.cursEscolarId) {
     // Obtenir el curs escolar antic
-    const oldProg = await prisma.programacio.findUnique({
-      where: { id },
-      select: { cursEscolarId: true },
-    })
-
     updateData.cursEscolarId = data.cursEscolarId
-
-    // Comprovar si el curs antic queda buit
-    if (oldProg?.cursEscolarId !== data.cursEscolarId) {
-      const count = await prisma.programacio.count({
-        where: { cursEscolarId: oldProg?.cursEscolarId },
-      })
-      if (count === 0) {
-        await prisma.cursEscolar.delete({
-          where: { id: oldProg?.cursEscolarId },
-        })
-      }
-    }
   }
 
   const programacio = await prisma.programacio.update({
     where: { id },
     data: updateData,
   })
+
+  if (data.cursEscolarId && existing.cursEscolarId !== data.cursEscolarId) {
+    const count = await prisma.programacio.count({ where: { cursEscolarId: existing.cursEscolarId } })
+    const examens = await prisma.examen.count({ where: { cursEscolarId: existing.cursEscolarId } })
+    if (count === 0 && examens === 0) await prisma.cursEscolar.delete({ where: { id: existing.cursEscolarId } })
+  }
+  await createProgramacioVersion({ programacioId: id, autorId: session.user.id, canvis: 'Dades generals de la programació actualitzades' })
 
   return NextResponse.json(programacio)
 }
@@ -101,11 +100,14 @@ export async function DELETE(
   // Obtenir el cursEscolarId abans d'eliminar
   const prog = await prisma.programacio.findUnique({
     where: { id },
-    select: { cursEscolarId: true },
+    select: { cursEscolarId: true, autorId: true },
   })
   
   if (!prog) {
     return NextResponse.json({ error: 'No trobada' }, { status: 404 })
+  }
+  if (!canManage(prog.autorId, session.user)) {
+    return NextResponse.json({ error: 'No tens permís per eliminar aquesta programació' }, { status: 403 })
   }
   
   await prisma.programacio.delete({ where: { id } })
@@ -116,9 +118,8 @@ export async function DELETE(
   })
   
   if (count === 0) {
-    await prisma.cursEscolar.delete({
-      where: { id: prog.cursEscolarId },
-    })
+    const examens = await prisma.examen.count({ where: { cursEscolarId: prog.cursEscolarId } })
+    if (examens === 0) await prisma.cursEscolar.delete({ where: { id: prog.cursEscolarId } })
   }
 
   return NextResponse.json({ success: true })

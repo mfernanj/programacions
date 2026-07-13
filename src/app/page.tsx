@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 import { useEffect } from 'react'
 
 export default function HomePage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

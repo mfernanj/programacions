@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { canManage } from '@/lib/permissions'
+import { createProgramacioVersion } from '@/lib/versions'
+
+type UnitatPayload = {
+  titol?: string; temporitzacio?: string; dataInici?: string | null; dataFi?: string | null
+  objectius?: string; continguts?: string; criterisAvaluacio?: string | null
+  competencies?: string | null; activitats?: string | null; ordre?: number | string
+}
 
 export async function PUT(
   request: Request,
@@ -13,26 +22,34 @@ export async function PUT(
 
   const { id } = await params
 
+  const existent = await prisma.unitatDidactica.findUnique({
+    where: { id },
+    select: { programacio: { select: { id: true, autorId: true } } },
+  })
+  if (!existent) return NextResponse.json({ error: 'Unitat no trobada' }, { status: 404 })
+  if (!canManage(existent.programacio.autorId, session.user)) {
+    return NextResponse.json({ error: 'No tens permís per modificar aquesta unitat' }, { status: 403 })
+  }
+
   try {
     const raw = await request.text()
-    console.debug('PUT /api/unitats/[id] raw body:', raw)
-    let payload: any = {}
+    let payload: UnitatPayload = {}
     try {
-      payload = raw ? JSON.parse(raw) : {}
-    } catch (e) {
-      console.debug('PUT /api/unitats/[id] JSON parse error:', e)
+      const parsed: unknown = raw ? JSON.parse(raw) : {}
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error()
+      payload = parsed as UnitatPayload
+    } catch {
       return NextResponse.json({ error: 'Payload JSON invalid' }, { status: 400 })
     }
 
-    console.debug('PUT /api/unitats/[id] payload (parsed):', payload)
-
-    const isValidDate = (v: any) => {
+    const isValidDate = (v: unknown): v is string => {
       if (!v) return false
+      if (typeof v !== 'string') return false
       const t = Date.parse(v)
       return !isNaN(t)
     }
 
-    const safeData: any = {
+    const safeData: Prisma.UnitatDidacticaUpdateInput = {
       titol: payload.titol,
       temporitzacio: payload.temporitzacio,
       dataInici: isValidDate(payload.dataInici) ? new Date(payload.dataInici) : null,
@@ -53,11 +70,13 @@ export async function PUT(
       where: { id },
       data: safeData,
     })
+    await createProgramacioVersion({ programacioId: existent.programacio.id, autorId: session.user.id, canvis: `Unitat actualitzada: ${unitat.titol}` })
 
     return NextResponse.json(unitat)
-  } catch (err: any) {
+  } catch (err) {
     console.error('PUT /api/unitats/[id] error:', err)
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Error intern del servidor'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -71,7 +90,16 @@ export async function DELETE(
   }
 
   const { id } = await params
+  const existent = await prisma.unitatDidactica.findUnique({
+    where: { id },
+    select: { programacio: { select: { id: true, autorId: true } } },
+  })
+  if (!existent) return NextResponse.json({ error: 'Unitat no trobada' }, { status: 404 })
+  if (!canManage(existent.programacio.autorId, session.user)) {
+    return NextResponse.json({ error: 'No tens permís per eliminar aquesta unitat' }, { status: 403 })
+  }
   await prisma.unitatDidactica.delete({ where: { id } })
+  await createProgramacioVersion({ programacioId: existent.programacio.id, autorId: session.user.id, canvis: 'Unitat eliminada' })
 
   return NextResponse.json({ success: true })
 }

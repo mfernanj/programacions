@@ -33,7 +33,7 @@ interface UnitatDidactica {
 
 export default function ImprimirProgramacioPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const [programacions, setProgramacions] = useState<ProgramacioRef[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [programacio, setProgramacio] = useState<ProgramacioRef | null>(null)
@@ -137,7 +137,7 @@ export default function ImprimirProgramacioPage() {
         setGuardatCorrecte(true)
         setTimeout(() => setGuardatCorrecte(false), 2000)
       }
-    } catch (error) {
+    } catch {
       setErrorNomCentre('Error de connexió. Torna-ho a provar.')
     } finally {
       setGuardantNomCentre(false)

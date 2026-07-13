@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import type { CursEscolar, Materia, Nivell } from '@/types/domain'
 
 interface Examen {
   id: string
@@ -24,16 +25,16 @@ interface Examen {
 }
 
 export default function ExamensPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [examens, setExamens] = useState<Examen[]>([])
-  const [nivells, setNivells] = useState<any[]>([])
-  const [materies, setMateries] = useState<any[]>([])
+  const [nivells, setNivells] = useState<Nivell[]>([])
+  const [materies, setMateries] = useState<Materia[]>([])
   const [filtreNivell, setFiltreNivell] = useState('')
   const [filtreMateria, setFiltreMateria] = useState('')
   const [filtreAvaluacio, setFiltreAvaluacio] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [cursos, setCursos] = useState<any[]>([])
+  const [cursos, setCursos] = useState<CursEscolar[]>([])
   const [editantId, setEditantId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     titol: '', descripcio: '', cursEscolarId: '', nivellId: '', materiaId: '',
@@ -47,8 +48,12 @@ export default function ExamensPage() {
   }, [status, router])
 
   useEffect(() => {
-    fetch('/api/nivells').then(r => r.json()).then(setNivells)
-    fetch('/api/cursos').then(r => r.json()).then(setCursos)
+    fetch('/api/nivells').then((res) => res.json()).then(setNivells)
+    fetch('/api/cursos').then((res) => res.json()).then((data: CursEscolar[]) => {
+      setCursos(data)
+      const actiu = data.find((curs) => curs.actiu)
+      if (actiu) setFormData((previous) => ({ ...previous, cursEscolarId: previous.cursEscolarId || actiu.id }))
+    })
   }, [])
 
   const carregarExamens = () => {
@@ -59,22 +64,20 @@ export default function ExamensPage() {
     fetch(`/api/examens?${params}`).then(r => r.json()).then(setExamens)
   }
 
-  useEffect(() => { carregarExamens() }, [filtreNivell, filtreMateria, filtreAvaluacio])
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filtreNivell) params.set('nivellId', filtreNivell)
+    if (filtreMateria) params.set('materiaId', filtreMateria)
+    if (filtreAvaluacio) params.set('avaluacio', filtreAvaluacio)
+    fetch(`/api/examens?${params}`).then((res) => res.json()).then(setExamens)
+  }, [filtreNivell, filtreMateria, filtreAvaluacio])
 
   const nivellSelected = (id: string) => {
     setFormData({ ...formData, nivellId: id, materiaId: '' })
-    const nivell = nivells.find(n => n.id === id)
+    const nivell = nivells.find((nivell) => nivell.id === id)
     setMateries(nivell?.matèries || [])
     setFiltreNivell(id)
   }
-
-  // Seleccionar curs actiu per defecte
-  useEffect(() => {
-    if (cursos.length > 0 && !formData.cursEscolarId) {
-      const actiu = cursos.find(c => c.actiu)
-      setFormData(prev => ({ ...prev, cursEscolarId: actiu ? actiu.id : cursos[0].id }))
-    }
-  }, [cursos])
 
   const resetForm = () => {
     setFormData({ titol: '', descripcio: '', cursEscolarId: '', nivellId: '', materiaId: '', avaluacio: '1a', tipus: 'examen', dificultat: 'mitja', etiquetes: '', fitxerPath: '' })
@@ -179,7 +182,7 @@ export default function ExamensPage() {
       fitxerPath: examen.fitxerPath || '',
     })
     // Carregar matèries del nivell
-    const nivell = nivells.find((n: any) => n.id === examen.nivellId)
+    const nivell = nivells.find((nivell) => nivell.id === examen.nivellId)
     if (nivell) setMateries(nivell.matèries || [])
     setShowForm(true)
   }
@@ -220,17 +223,17 @@ export default function ExamensPage() {
               <input placeholder="Descripció" value={formData.descripcio} onChange={e => setFormData({...formData, descripcio: e.target.value})} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
               <select value={formData.cursEscolarId} onChange={e => setFormData({...formData, cursEscolarId: e.target.value})} className="rounded-md border border-gray-300 px-3 py-2 text-sm" required>
                 <option value="">Curs escolar</option>
-                {cursos.map((c: any) => (
+                {cursos.map((c) => (
                   <option key={c.id} value={c.id}>{c.anyInici}/{c.anyFi} {c.actiu ? '(actiu)' : ''}</option>
                 ))}
               </select>
               <select value={formData.nivellId} onChange={e => nivellSelected(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" required>
                 <option value="">Nivell</option>
-                {nivells.map((n: any) => <option key={n.id} value={n.id}>{n.nom}</option>)}
+                {nivells.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
               </select>
               <select value={formData.materiaId} onChange={e => setFormData({...formData, materiaId: e.target.value})} className="rounded-md border border-gray-300 px-3 py-2 text-sm" disabled={!formData.nivellId} required>
                 <option value="">Matèria</option>
-                {materies.map((m: any) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                {materies.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
               </select>
               <select value={formData.avaluacio} onChange={e => setFormData({...formData, avaluacio: e.target.value})} className="rounded-md border border-gray-300 px-3 py-2 text-sm" required>
                 <option value="1a">1a Avaluació</option>
@@ -291,7 +294,7 @@ export default function ExamensPage() {
         <div className="mb-6 flex flex-wrap gap-3">
           <select value={filtreNivell} onChange={e => { setFiltreNivell(e.target.value); setFiltreMateria('') }} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <option value="">Tots els nivells</option>
-            {nivells.map((n: any) => <option key={n.id} value={n.id}>{n.nom}</option>)}
+            {nivells.map((n) => <option key={n.id} value={n.id}>{n.nom}</option>)}
           </select>
           <select value={filtreAvaluacio} onChange={e => setFiltreAvaluacio(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <option value="">Totes les avaluacions</option>

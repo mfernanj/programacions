@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
+import type { CursEscolar, Nivell } from '@/types/domain'
 
 interface Programacio {
   id: string
@@ -21,11 +22,11 @@ interface Programacio {
 }
 
 export default function ProgramacionsPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [programacions, setProgramacions] = useState<Programacio[]>([])
-  const [cursos, setCursos] = useState<any[]>([])
-  const [nivells, setNivells] = useState<any[]>([])
+  const [cursos, setCursos] = useState<CursEscolar[]>([])
+  const [nivells, setNivells] = useState<Nivell[]>([])
   const [filtreCurs, setFiltreCurs] = useState('')
   const [filtreNivell, setFiltreNivell] = useState('')
 
@@ -68,7 +69,13 @@ export default function ProgramacionsPage() {
   }, [])
 
   useEffect(() => {
-    carregarProgramacions()
+    const params = new URLSearchParams()
+    if (filtreCurs) params.set('cursEscolarId', filtreCurs)
+    if (filtreNivell) params.set('nivellId', filtreNivell)
+    const query = params.toString()
+    fetch(query ? `/api/programacions?${query}` : '/api/programacions')
+      .then((res) => res.json())
+      .then(setProgramacions)
   }, [filtreCurs, filtreNivell])
 
   if (status === 'loading') return <div className="flex min-h-screen items-center justify-center"><p>Carregant...</p></div>
@@ -99,7 +106,7 @@ export default function ProgramacionsPage() {
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">Tots els cursos escolars</option>
-            {cursos.map((c: any) => (
+            {cursos.map((c) => (
               <option key={c.id} value={c.id}>{c.anyInici}/{c.anyFi} {c.actiu ? '(actiu)' : ''}</option>
             ))}
           </select>
@@ -109,7 +116,7 @@ export default function ProgramacionsPage() {
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">Tots els nivells</option>
-            {nivells.map((n: any) => (
+            {nivells.map((n) => (
               <option key={n.id} value={n.id}>{n.nom}</option>
             ))}
           </select>

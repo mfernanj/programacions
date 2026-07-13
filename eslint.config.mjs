@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Els apòstrofs són habituals en els textos en català i no alteren el JSX.
+      "react/no-unescaped-entities": ["error", { forbid: [">", '"', "}"] }],
+    },
+  },
 ]);
 
 export default eslintConfig;

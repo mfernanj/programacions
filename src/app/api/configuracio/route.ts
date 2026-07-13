@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { isAdmin } from '@/lib/permissions'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
     }
-
     const config = await prisma.configuracio.findFirst()
     if (!config) {
       return NextResponse.json({ nomCentre: 'Centre Educatiu' })
@@ -31,11 +31,14 @@ export async function PUT(request: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
     }
+    if (!isAdmin(session.user)) {
+      return NextResponse.json({ error: 'Només l’administració pot modificar la configuració' }, { status: 403 })
+    }
 
     const data = await request.json()
     const nomCentre = typeof data.nomCentre === 'string' ? data.nomCentre.trim() : ''
 
-    if (!nomCentre) {
+    if (!nomCentre || nomCentre.length > 120) {
       return NextResponse.json({ error: 'Nom del centre invàlid' }, { status: 400 })
     }
 

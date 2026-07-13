@@ -45,13 +45,11 @@ interface UnitatDidactica {
 }
 
 export default function UnitatsPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [unitats, setUnitats] = useState<UnitatDidactica[]>([])
   const [programacions, setProgramacions] = useState<ProgramacioRef[]>([])
   const [selectedProgramacioId, setSelectedProgramacioId] = useState<string>('')
-  const [editantUnitat, setEditantUnitat] = useState<string | null>(null)
-  const [unitatEnEdicio, setUnitatEnEdicio] = useState<Record<string, UnitatDidactica>>({})
 
   const [editantSituacio, setEditantSituacio] = useState<string | null>(null)
   const [situacioEnEdicio, setSituacioEnEdicio] = useState<Record<string, SituacioAprenentatge>>({})
@@ -79,40 +77,6 @@ export default function UnitatsPage() {
   useEffect(() => {
     fetch('/api/programacions').then(r => r.json()).then(setProgramacions)
   }, [])
-
-  const iniciarEdicioUnitat = (unitat: UnitatDidactica) => {
-    setEditantUnitat(unitat.id)
-    setUnitatEnEdicio(prev => ({ ...prev, [unitat.id]: unitat }))
-  }
-
-  const canviUnitatEnEdicio = (id: string, field: keyof UnitatDidactica, value: string | number) => {
-    setUnitatEnEdicio(prev => ({
-      ...prev,
-      [id]: { ...prev[id], [field]: value },
-    }))
-  }
-
-  const desarUnitat = async (id: string) => {
-    const unitat = unitatEnEdicio[id]
-    if (!unitat) return
-    const res = await fetch(`/api/unitats/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(unitat),
-    })
-    if (res.ok) {
-      setEditantUnitat(null)
-      setUnitatEnEdicio(prev => { const n = { ...prev }; delete n[id]; return n })
-      carregarUnitats(selectedProgramacioId)
-    } else {
-      alert('Error desant la unitat')
-    }
-  }
-
-  const cancel·larEdicioUnitat = (id: string) => {
-    setEditantUnitat(null)
-    setUnitatEnEdicio(prev => { const n = { ...prev }; delete n[id]; return n })
-  }
 
   const obrirNovaSituacio = (unitatId: string) => {
     setNovaSituacio(prev => ({ ...prev, [unitatId]: true }))
@@ -248,9 +212,6 @@ export default function UnitatsPage() {
         ) : (
           <div className="space-y-4">
             {unitats.map((unitat) => {
-              const enEdicio = editantUnitat === unitat.id
-              const unitatEdit = unitatEnEdicio[unitat.id] || unitat
-
               return (
                 <div key={unitat.id} className="rounded-lg bg-white p-6 shadow-md">
                   <div className="mb-2">

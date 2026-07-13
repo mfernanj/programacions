@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
+import fs from 'node:fs'
+import pathModule from 'node:path'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { canManage } from '@/lib/permissions'
+
+const MAX_PDF_SIZE = 10 * 1024 * 1024
 
 export async function GET(
   request: Request,
@@ -56,28 +61,33 @@ export async function PUT(
   // Obtenir examen existent per esborrar fitxer antic si cal
   const examenExistent = await prisma.examen.findUnique({
     where: { id },
-    select: { fitxerPath: true },
+    select: { fitxerPath: true, autorId: true },
   })
+  if (!examenExistent) return NextResponse.json({ error: 'Examen no trobat' }, { status: 404 })
+  if (!canManage(examenExistent.autorId, session.user)) {
+    return NextResponse.json({ error: 'No tens permís per modificar aquest examen' }, { status: 403 })
+  }
 
   let nouFitxerPath = fitxerPath || examenExistent?.fitxerPath
 
   // Si hi ha nou fitxer, guardar-lo
   if (fitxer && fitxer.size > 0) {
+    if (fitxer.type !== 'application/pdf' || fitxer.size > MAX_PDF_SIZE) {
+      return NextResponse.json({ error: 'L’arxiu ha de ser un PDF de menys de 10 MB' }, { status: 400 })
+    }
     const bytes = await fitxer.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const nomOriginal = fitxer.name
     const extensio = nomOriginal.split('.').pop()
     const nomNou = `${Date.now()}-${Math.random().toString(36).substring(2)}.${extensio}`
-    const path = `public/examens/${nomNou}`
+    const filePath = `public/examens/${nomNou}`
     
-    const fs = require('fs')
-    const pathModule = require('path')
-    const dir = pathModule.dirname(path)
+    const dir = pathModule.dirname(filePath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
     
-    fs.writeFileSync(path, buffer)
+    fs.writeFileSync(filePath, buffer)
     nouFitxerPath = `/examens/${nomNou}`
 
     // Esborrar fitxer antic si existeix

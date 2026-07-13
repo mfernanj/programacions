@@ -31,6 +31,7 @@ interface DashboardStats {
     estat: string
     updatedAt: string
     autor: { nom: string }
+    _count: { unitatsDidactiques: number }
   }>
   examensRecents: Examen[]
 }
@@ -57,7 +58,7 @@ export default function DashboardPage() {
         const examens = await examRes.json()
         setStats({
           totalProgramacions: programacions.length,
-          totalUnitats: programacions.reduce((acc: number, p: any) => acc + (p._count?.unitatsDidactiques || 0), 0),
+          totalUnitats: programacions.reduce((acc: number, p: DashboardStats['programacionsRecents'][number]) => acc + p._count.unitatsDidactiques, 0),
           totalExamens: examens.length,
           usuaris: 1,
           programacionsRecents: programacions.slice(0, 5),
@@ -159,7 +160,7 @@ export default function DashboardPage() {
             + Pujar examen
           </Link>
           <Link
-            href="/usuaris/nou"
+            href="/usuaris"
             className="rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
           >
             + Afegir usuari

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client'
+import type { CriteriAvaluacio, PrismaClient } from '@prisma/client'
 
 // Exported function so this seed can be composed into prisma/seed.ts
 export async function seed2nBatxCS(prisma: PrismaClient) {
@@ -95,8 +95,7 @@ export async function seed2nBatxCS(prisma: PrismaClient) {
     ]},
   ]
 
-  const blocMap: Record<string, any> = {}
-  const criterisMap: Record<string, Array<any>> = {}
+  const criterisMap: Record<string, CriteriAvaluacio[]> = {}
   for (const b of blocsData) {
     let bloc = await prisma.bloc.findFirst({ where: { codi: b.codi, materiaId: materia.id } })
     if (!bloc) {
@@ -104,7 +103,6 @@ export async function seed2nBatxCS(prisma: PrismaClient) {
     } else {
       bloc = await prisma.bloc.update({ where: { id: bloc.id }, data: { nom: b.nom } })
     }
-    blocMap[b.codi] = bloc
     criterisMap[b.codi] = []
     for (const c of b.criteris) {
       let crit = await prisma.criteriAvaluacio.findFirst({ where: { codi: c.codi, blocId: bloc.id } })
@@ -121,15 +119,15 @@ export async function seed2nBatxCS(prisma: PrismaClient) {
   for (const u of unitats) {
     const relatedCriteris: string[] = []
     if (u.titol.match(/Matrius|sistemes|programació lineal/i)) {
-      relatedCriteris.push(...criterisMap['BL2'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL2'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/Funcions|continuitat|límits/i)) {
-      relatedCriteris.push(...criterisMap['BL3'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL3'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/Derivades|integrals/i)) {
-      relatedCriteris.push(...criterisMap['BL3'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL3'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/Probabilitat|estadística/i)) {
-      relatedCriteris.push(...criterisMap['BL4'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL4'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else {
-      relatedCriteris.push(...criterisMap['BL1'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL1'].map((c) => `${c.codi} - ${c.descripcio}`))
     }
 
     const combinedCriteris = [u.criterisAvaluacio, relatedCriteris.join('\n')].filter(Boolean).join('\n\n')

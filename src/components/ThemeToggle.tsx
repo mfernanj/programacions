@@ -15,7 +15,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
     } else {
       root.removeAttribute('data-theme')
     }
-    try { localStorage.setItem('theme', theme) } catch (e) { /* ignore */ }
+    try { localStorage.setItem('theme', theme) } catch { /* ignore */ }
   }, [theme])
 
   return (

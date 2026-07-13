@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client'
+import type { CriteriAvaluacio, PrismaClient } from '@prisma/client'
 // Exported function so this seed can be composed into prisma/seed.ts
 export async function seed4tma(prisma: PrismaClient) {
   // Ensure Nivell
@@ -112,8 +112,7 @@ export async function seed4tma(prisma: PrismaClient) {
     ]},
   ]
 
-  const blocMap: Record<string, any> = {}
-  const criterisMap: Record<string, Array<any>> = {}
+  const criterisMap: Record<string, CriteriAvaluacio[]> = {}
   for (const b of blocsData) {
     let bloc = await prisma.bloc.findFirst({ where: { codi: b.codi, materiaId: materia.id } })
     if (!bloc) {
@@ -121,7 +120,6 @@ export async function seed4tma(prisma: PrismaClient) {
     } else {
       bloc = await prisma.bloc.update({ where: { id: bloc.id }, data: { nom: b.nom } })
     }
-    blocMap[b.codi] = bloc
     criterisMap[b.codi] = []
     for (const c of b.criteris) {
       // ensure unique by codi + blocId
@@ -142,22 +140,22 @@ export async function seed4tma(prisma: PrismaClient) {
     const relatedCriteris: string[] = []
     if (u.titol.match(/Funcions|modelització/i)) {
       relatedBlocs.push('BL4')
-      relatedCriteris.push(...criterisMap['BL4'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL4'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/Equacions/i)) {
       relatedBlocs.push('BL2')
-      relatedCriteris.push(...criterisMap['BL2'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL2'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/Successions/i)) {
       relatedBlocs.push('BL2')
       relatedCriteris.push(criterisMap['BL2'][0] ? `${criterisMap['BL2'][0].codi} - ${criterisMap['BL2'][0].descripcio}` : '')
     } else if (u.titol.match(/Estadística|probabilitat/i)) {
       relatedBlocs.push('BL5')
-      relatedCriteris.push(...criterisMap['BL5'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL5'].map((c) => `${c.codi} - ${c.descripcio}`))
     } else if (u.titol.match(/financ/i)) {
       relatedBlocs.push('BL2')
       relatedCriteris.push(criterisMap['BL2'][0] ? `${criterisMap['BL2'][0].codi} - ${criterisMap['BL2'][0].descripcio}` : '')
     } else if (u.titol.match(/Geometria|trigonometria/i)) {
       relatedBlocs.push('BL3')
-      relatedCriteris.push(...criterisMap['BL3'].map((c: any) => `${c.codi} - ${c.descripcio}`))
+      relatedCriteris.push(...criterisMap['BL3'].map((c) => `${c.codi} - ${c.descripcio}`))
     }
 
     const combinedCriteris = [u.criterisAvaluacio, relatedCriteris.join('\n')].filter(Boolean).join('\n\n')

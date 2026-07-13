@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import type { Nivell, Materia } from '@/types/domain'
 
 interface Programacio {
   id: string
@@ -15,10 +16,10 @@ interface Programacio {
 }
 
 export default function NovaProgramacioPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
-  const [nivells, setNivells] = useState<any[]>([])
-  const [matèries, setMatèries] = useState<any[]>([])
+  const [nivells, setNivells] = useState<Nivell[]>([])
+  const [matèries, setMatèries] = useState<Materia[]>([])
   const [programacions, setProgramacions] = useState<Programacio[]>([])
   const [formData, setFormData] = useState({
     titol: '',
@@ -42,23 +43,6 @@ export default function NovaProgramacioPage() {
       .then(res => res.json())
       .then(setProgramacions)
   }, [])
-
-  // Quan es selecciona una programació per copiar
-  useEffect(() => {
-    if (formData.copiarDeId) {
-      const prog = programacions.find(p => p.id === formData.copiarDeId)
-      if (prog) {
-        setFormData(prev => ({
-          ...prev,
-          titol: prog.titol,
-          nivellId: prog.nivell.id,
-          materiaId: prog.materia.id,
-        }))
-        // Carregar matèries del nivell
-        setMatèries(prog.nivell.id ? nivells.find(n => n.id === prog.nivell.id)?.matèries || [] : [])
-      }
-    }
-  }, [formData.copiarDeId, programacions, nivells])
 
   const nivellSelected = (id: string) => {
     const nivell = nivells.find(n => n.id === id)
@@ -125,8 +109,15 @@ export default function NovaProgramacioPage() {
               <select
                 value={formData.copiarDeId}
                 onChange={(e) => {
-                  setFormData({ ...formData, copiarDeId: e.target.value, titol: '', nivellId: '', materiaId: '' })
-                  setMatèries([])
+                  const copiarDeId = e.target.value
+                  const prog = programacions.find((programacio) => programacio.id === copiarDeId)
+                  if (!prog) {
+                    setFormData({ ...formData, copiarDeId, titol: '', nivellId: '', materiaId: '' })
+                    setMatèries([])
+                    return
+                  }
+                  setFormData({ ...formData, copiarDeId, titol: prog.titol, nivellId: prog.nivell.id, materiaId: prog.materia.id })
+                  setMatèries(nivells.find((nivell) => nivell.id === prog.nivell.id)?.matèries || [])
                 }}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
@@ -190,7 +181,7 @@ export default function NovaProgramacioPage() {
                 disabled={!!formData.copiarDeId}
               >
                 <option value="">Selecciona un nivell</option>
-                {nivells.map((n: any) => (
+                {nivells.map((n) => (
                   <option key={n.id} value={n.id}>{n.nom}</option>
                 ))}
               </select>
@@ -206,7 +197,7 @@ export default function NovaProgramacioPage() {
                 disabled={!formData.nivellId || !!formData.copiarDeId}
               >
                 <option value="">Selecciona una matèria</option>
-                {matèries.map((m: any) => (
+                {matèries.map((m) => (
                   <option key={m.id} value={m.id}>{m.nom}</option>
                 ))}
               </select>

@@ -26,7 +26,7 @@ interface Programacio {
 }
 
 export default function CalendariProgramacioPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const params = useParams()
   const [programacio, setProgramacio] = useState<Programacio | null>(null)

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
+import type { CursEscolar } from '@/types/domain'
 
 const formatDateForInput = (value?: string | null) => {
   if (!value) return ''
@@ -53,10 +54,11 @@ interface Programacio {
   unitatsDidactiques: UnitatDidactica[]
   metodologies: Array<{ estrategies: string; recursos: string; agrupaments: string; avaluacio: string | null }>
   atencionsDiversitat: Array<{ mesuresGenerals: string; mesuresEspecifiques: string | null; adaptacions: string | null }>
+  versions: Array<{ id: string; numero: number; data: string; canvis: string; autor: { nom: string } }>
 }
 
 export default function ProgramacioDetailPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const params = useParams()
   const [programacio, setProgramacio] = useState<Programacio | null>(null)
@@ -71,7 +73,7 @@ export default function ProgramacioDetailPage() {
   const [formProgramacio, setFormProgramacio] = useState({
     titol: '', descripcio: '', estat: 'esborrany', cursEscolarId: '',
   })
-  const [cursos, setCursos] = useState<any[]>([])
+  const [cursos, setCursos] = useState<CursEscolar[]>([])
 
   // Estats per a situacions d'aprenentatge
   const [editantSituacio, setEditantSituacio] = useState<string | null>(null)
@@ -95,21 +97,18 @@ export default function ProgramacioDetailPage() {
   useEffect(() => {
     if (params.id) {
       fetch(`/api/programacions/${params.id}`)
-        .then(res => res.json())
-        .then(setProgramacio)
+        .then((res) => res.json())
+        .then((data: Programacio) => {
+          setProgramacio(data)
+          setFormProgramacio({
+            titol: data.titol,
+            descripcio: data.descripcio || '',
+            estat: data.estat,
+            cursEscolarId: data.cursEscolarId,
+          })
+        })
     }
   }, [params.id])
-
-  useEffect(() => {
-    if (programacio) {
-      setFormProgramacio({
-        titol: programacio.titol,
-        descripcio: programacio.descripcio || '',
-        estat: programacio.estat,
-        cursEscolarId: programacio.cursEscolarId || '',
-      })
-    }
-  }, [programacio])
 
   useEffect(() => {
     fetch('/api/cursos').then(r => r.json()).then(setCursos)
@@ -384,7 +383,7 @@ export default function ProgramacioDetailPage() {
                   className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 >
                   <option value="">Curs escolar</option>
-                  {cursos.map((c: any) => (
+                  {cursos.map((c) => (
                     <option key={c.id} value={c.id}>{c.anyInici}/{c.anyFi} {c.actiu ? '(actiu)' : ''}</option>
                   ))}
                 </select>
@@ -959,6 +958,22 @@ export default function ProgramacioDetailPage() {
             </div>
           </div>
         )}
+
+        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Historial de versions</h2>
+          {programacio.versions.length === 0 ? (
+            <p className="text-sm text-gray-500">Encara no hi ha canvis registrats.</p>
+          ) : (
+            <ol className="space-y-3">
+              {programacio.versions.map((versio) => (
+                <li key={versio.id} className="border-l-2 border-primary pl-3 text-sm">
+                  <p className="font-medium text-gray-900">v{versio.numero} · {versio.canvis}</p>
+                  <p className="text-gray-500">{new Date(versio.data).toLocaleString('ca-ES')} · {versio.autor.nom}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       </main>
     </div>
   )

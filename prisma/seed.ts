@@ -29,14 +29,15 @@ async function main() {
     }
     return await prisma.cursEscolar.create({ data: { anyInici, anyFi, actiu } })
   }
-  const curs2425 = await upsertCurs(2024, 2025, false)
-  const curs2526 = await upsertCurs(2025, 2026, false)
-  const curs2627 = await upsertCurs(2026, 2027, true)
+  await upsertCurs(2024, 2025, false)
+  await upsertCurs(2025, 2026, false)
+  await upsertCurs(2026, 2027, true)
   console.log('✅ Cursos escolars creats')
 
   // Configuració inicial del centre educatiu
-  await prisma.configuracio.findFirst() ||
-    prisma.configuracio.create({ data: { nomCentre: 'Institut Educatiu' } })
+  if (!await prisma.configuracio.findFirst()) {
+    await prisma.configuracio.create({ data: { nomCentre: 'Institut Educatiu' } })
+  }
 
   // Crear nivells
   const nivells = await Promise.all([
@@ -86,23 +87,24 @@ async function main() {
   // Crear blocs per a cada matèria d'ESO
   for (const materia of [materia1rESO, materia2nESO, materia3rESO, materia4tAcad, materia4tApl]) {
     for (const bloc of blocsESO) {
-      await prisma.bloc.findFirst({ where: { codi: bloc.codi, materiaId: materia.id } }) ||
-        prisma.bloc.create({ data: { codi: bloc.codi, nom: bloc.nom, materiaId: materia.id } })
+      if (!await prisma.bloc.findFirst({ where: { codi: bloc.codi, materiaId: materia.id } })) {
+        await prisma.bloc.create({ data: { codi: bloc.codi, nom: bloc.nom, materiaId: materia.id } })
+      }
     }
   }
 
   // Crear blocs per a cada matèria de Batxillerat
   for (const materia of [materia1rBatx, materia2nBatx]) {
     for (const bloc of blocsBatx) {
-      await prisma.bloc.findFirst({ where: { codi: bloc.codi, materiaId: materia.id } }) ||
-        prisma.bloc.create({ data: { codi: bloc.codi, nom: bloc.nom, materiaId: materia.id } })
+      if (!await prisma.bloc.findFirst({ where: { codi: bloc.codi, materiaId: materia.id } })) {
+        await prisma.bloc.create({ data: { codi: bloc.codi, nom: bloc.nom, materiaId: materia.id } })
+      }
     }
   }
   console.log('✅ Blocs creats')
 
   // Crear plantilles predefinides
-  await prisma.plantilla.findFirst({ where: { nom: 'Programació ESO' } }) ||
-    prisma.plantilla.create({
+  if (!await prisma.plantilla.findFirst({ where: { nom: 'Programació ESO' } })) await prisma.plantilla.create({
       data: {
         nom: 'Programació ESO',
         descripcio: 'Plantilla estàndard per a programacions d\'ESO',
@@ -122,8 +124,7 @@ async function main() {
       },
     })
 
-  await prisma.plantilla.findFirst({ where: { nom: 'Programació Batxillerat' } }) ||
-    prisma.plantilla.create({
+  if (!await prisma.plantilla.findFirst({ where: { nom: 'Programació Batxillerat' } })) await prisma.plantilla.create({
       data: {
         nom: 'Programació Batxillerat',
         descripcio: 'Plantilla estàndard per a programacions de Batxillerat',
@@ -147,7 +148,7 @@ async function main() {
   // Seed 4t ESO Matemàtiques Aplicades programació
   try {
     const { seed4tma } = await import('../scripts/seed-4tma')
-    await seed4tma(prisma as any)
+    await seed4tma(prisma)
     console.log('✅ Seed 4tMA executat des de prisma/seed.ts')
   } catch (err) {
     console.error('⚠️ Error executant seed 4tMA:', err)
@@ -156,7 +157,7 @@ async function main() {
   // Seed 2n Batx Matemàtiques Aplicades a les Ciències Socials programació
   try {
     const { seed2nBatxCS } = await import('../scripts/seed-2nbatx-cs')
-    await seed2nBatxCS(prisma as any)
+    await seed2nBatxCS(prisma)
     console.log('✅ Seed 2n Batx CS executat des de prisma/seed.ts')
   } catch (err) {
     console.error('⚠️ Error executant seed 2n Batx CS:', err)
