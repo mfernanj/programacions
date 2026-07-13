@@ -5,6 +5,19 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface Examen {
+  id: string
+  titol: string
+  avaluacio: string
+  tipus: string
+  dificultat: string
+  fitxerPath: string | null
+  nivell: { nom: string }
+  materia: { nom: string }
+  cursEscolar: { anyInici: number; anyFi: number }
+  autor: { nom: string }
+}
+
 interface DashboardStats {
   totalProgramacions: number
   totalUnitats: number
@@ -19,6 +32,7 @@ interface DashboardStats {
     updatedAt: string
     autor: { nom: string }
   }>
+  examensRecents: Examen[]
 }
 
 export default function DashboardPage() {
@@ -35,14 +49,19 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/programacions')
-        const programacions = await res.json()
+        const [progRes, examRes] = await Promise.all([
+          fetch('/api/programacions'),
+          fetch('/api/examens')
+        ])
+        const programacions = await progRes.json()
+        const examens = await examRes.json()
         setStats({
           totalProgramacions: programacions.length,
           totalUnitats: programacions.reduce((acc: number, p: any) => acc + (p._count?.unitatsDidactiques || 0), 0),
-          totalExamens: 0,
+          totalExamens: examens.length,
           usuaris: 1,
           programacionsRecents: programacions.slice(0, 5),
+          examensRecents: examens.slice(0, 5),
         })
       } catch (error) {
         console.error('Error fetching stats:', error)
@@ -134,7 +153,7 @@ export default function DashboardPage() {
             + Nova programació
           </Link>
           <Link
-            href="/examens/nou"
+            href="/examens"
             className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
             + Pujar examen
@@ -185,6 +204,49 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="py-3">{prog.autor?.nom}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Exàmens recents */}
+      <div className="rounded-lg bg-white p-6 shadow-md">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Exàmens recents</h2>
+        {stats.examensRecents.length === 0 ? (
+          <p className="text-gray-500">No hi ha exàmens encara.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b text-gray-500">
+                  <th className="pb-3 pr-4 font-medium">Títol</th>
+                  <th className="pb-3 pr-4 font-medium">Nivell</th>
+                  <th className="pb-3 pr-4 font-medium">Matèria</th>
+                  <th className="pb-3 pr-4 font-medium">Avaluació</th>
+                  <th className="pb-3 font-medium">Autor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.examensRecents.map((examen) => (
+                  <tr key={examen.id} className="border-b last:border-0">
+                    <td className="py-3 pr-4">
+                      {examen.fitxerPath ? (
+                        <a href={examen.fitxerPath} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          {examen.titol}
+                        </a>
+                      ) : (
+                        <span className="text-gray-900">{examen.titol}</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">{examen.nivell?.nom}</td>
+                    <td className="py-3 pr-4">{examen.materia?.nom}</td>
+                    <td className="py-3 pr-4">
+                      {examen.avaluacio === 'Extraordinaria' ? 'Extraordinària' : `${examen.avaluacio} Avaluació`}
+                    </td>
+                    <td className="py-3">{examen.autor?.nom}</td>
                   </tr>
                 ))}
               </tbody>
