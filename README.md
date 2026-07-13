@@ -7,6 +7,8 @@ Aplicació web per a la gestió de programacions didàctiques del departament de
 - **Autenticació d'usuaris** — Login amb credencials i rols (admin/membre) mitjançant NextAuth v5
 - **Dashboard** — Panell de control amb estadístiques i accions ràpides
 - **Gestió de programacions didàctiques** — CRUD complet amb estats: esborrany, publicat, finalitzat
+- **Copiar programacions** — Crear una nova programació a partir d'una existent, canviant només el curs escolar (manté unitats, SA, metodologia i atenció a la diversitat)
+- **Cursos escolars automàtics** — Els cursos escolars es creen i esborren automàticament segons les programacions existents
 - **Unitats didàctiques** — Organització amb títol, temporització, objectius, continguts, criteris d'avaluació i dates d'inici/fi
 - **Situacions d'aprenentatge** — Dins de cada unitat, seqüenciació d'activitats amb:
   - Competències específiques del currículum
@@ -153,4 +155,3 @@ Per a modificar l'esquema de base de dades:
 3. (Opcional) Per a regenerar el client Prisma:
    ```bash
    npx prisma generate
-   ```

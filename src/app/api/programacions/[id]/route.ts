@@ -72,7 +72,29 @@ export async function DELETE(
   }
 
   const { id } = await params
+  
+  // Obtenir el cursEscolarId abans d'eliminar
+  const prog = await prisma.programacio.findUnique({
+    where: { id },
+    select: { cursEscolarId: true },
+  })
+  
+  if (!prog) {
+    return NextResponse.json({ error: 'No trobada' }, { status: 404 })
+  }
+  
   await prisma.programacio.delete({ where: { id } })
+
+  // Comprovar si queden programacions per a aquest curs
+  const count = await prisma.programacio.count({
+    where: { cursEscolarId: prog.cursEscolarId },
+  })
+  
+  if (count === 0) {
+    await prisma.cursEscolar.delete({
+      where: { id: prog.cursEscolarId },
+    })
+  }
 
   return NextResponse.json({ success: true })
 }
