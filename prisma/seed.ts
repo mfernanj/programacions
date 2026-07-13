@@ -18,13 +18,20 @@ async function main() {
   })
   console.log('✅ Usuari admin creat:', admin.email)
 
-  // Crear cursos escolars
-  const curs2425 = await prisma.cursEscolar.findFirst({ where: { anyInici: 2024 } }) ||
-    await prisma.cursEscolar.create({ data: { anyInici: 2024, anyFi: 2025, actiu: false } })
-  const curs2526 = await prisma.cursEscolar.findFirst({ where: { anyInici: 2025 } }) ||
-    await prisma.cursEscolar.create({ data: { anyInici: 2025, anyFi: 2026, actiu: false } })
-  const curs2627 = await prisma.cursEscolar.findFirst({ where: { anyInici: 2026 } }) ||
-    await prisma.cursEscolar.create({ data: { anyInici: 2026, anyFi: 2027, actiu: true } })
+  // Crear cursos escolars (usar findFirst + create/update per evitar duplicats)
+  const upsertCurs = async (anyInici: number, anyFi: number, actiu: boolean) => {
+    const existent = await prisma.cursEscolar.findFirst({ where: { anyInici } })
+    if (existent) {
+      return await prisma.cursEscolar.update({
+        where: { id: existent.id },
+        data: { anyFi, actiu },
+      })
+    }
+    return await prisma.cursEscolar.create({ data: { anyInici, anyFi, actiu } })
+  }
+  const curs2425 = await upsertCurs(2024, 2025, false)
+  const curs2526 = await upsertCurs(2025, 2026, false)
+  const curs2627 = await upsertCurs(2026, 2027, true)
   console.log('✅ Cursos escolars creats')
 
   // Configuració inicial del centre educatiu

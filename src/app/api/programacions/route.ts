@@ -40,11 +40,139 @@ export async function POST(request: Request) {
   }
 
   const data = await request.json()
+  
+  // Gestionar curs escolar: buscar o crear
+  const anyInici = data.anyInici
+  const anyFi = data.anyFi
+  
+  let cursEscolar = await prisma.cursEscolar.findFirst({
+    where: { anyInici, anyFi },
+  })
+  
+  if (!cursEscolar) {
+    cursEscolar = await prisma.cursEscolar.create({
+      data: { anyInici, anyFi, actiu: false },
+    })
+  }
+
+  // Opció de copiar des d'una programació existent
+  if (data.copiarDeId) {
+    const original = await prisma.programacio.findUnique({
+      where: { id: data.copiarDeId },
+      include: {
+        unitatsDidactiques: {
+          include: { situacionsAprenentatge: true },
+        },
+        metodologies: true,
+        atencionsDiversitat: true,
+      },
+    })
+
+    if (!original) {
+      return NextResponse.json({ error: 'Programació origen no trobada' }, { status: 404 })
+    }
+
+    // Deep copy amb transacció
+    const programacio = await prisma.$transaction(async (tx) => {
+      const novaProg = await tx.programacio.create({
+        data: {
+          titol: data.titol || original.titol,
+          descripcio: data.descripcio || original.descripcio,
+          cursEscolarId: cursEscolar.id,
+          nivellId: original.nivellId,
+          materiaId: original.materiaId,
+          autorId: session.user.id,
+        },
+      })
+
+      // Copiar unitats didàctiques i SA
+      for (const unitat of original.unitatsDidactiques) {
+        const novaUnitat = await tx.unitatDidactica.create({
+          data: {
+            titol: unitat.titol,
+            temporitzacio: unitat.temporitzacio,
+            objectius: unitat.objectius,
+            continguts: unitat.continguts,
+            criterisAvaluacio: unitat.criterisAvaluacio,
+            competencies: unitat.competencies,
+            activitats: unitat.activitats,
+            ordre: unitat.ordre,
+            programacioId: novaProg.id,
+          },
+        })
+
+        // Copiar SA de cada unitat
+        for (const sa of unitat.situacionsAprenentatge) {
+          await tx.situacioAprenentatge.create({
+            data: {
+              titol: sa.titol,
+              descripcio: sa.descripcio,
+              competenciesEspecifiques: sa.competenciesEspecifiques,
+              mesuresSuportsUniversals: sa.mesuresSuportsUniversals,
+              activitatsInicials: sa.activitatsInicials,
+              activitatsDesenvolupament: sa.activitatsDesenvolupament,
+              activitatsEstructuracio: sa.activitatsEstructuracio,
+              activitatsAplicacio: sa.activitatsAplicacio,
+              ordre: sa.ordre,
+              unitatDidacticaId: novaUnitat.id,
+            },
+          })
+        }
+      }
+
+      // Copiar metodologia
+      if (original.metodologies && original.metodologies.length > 0) {
+        const met = original.metodologies[0]
+        await tx.metodologia.create({
+          data: {
+            estrategies: met.estrategies,
+            recursos: met.recursos,
+            agrupaments: met.agrupaments,
+            avaluacio: met.avaluacio,
+            programacioId: novaProg.id,
+          },
+        })
+      }
+
+      // Copiar atenció a la diversitat
+      if (original.atencionsDiversitat && original.atencionsDiversitat.length > 0) {
+        const ad = original.atencionsDiversitat[0]
+        await tx.atencioDiversitat.create({
+          data: {
+            mesuresGenerals: ad.mesuresGenerals,
+            mesuresEspecifiques: ad.mesuresEspecifiques,
+            adaptacions: ad.adaptacions,
+            programacioId: novaProg.id,
+          },
+        })
+      }
+
+      // Retornar amb includes
+      return await tx.programacio.findUnique({
+        where: { id: novaProg.id },
+        include: {
+          nivell: true,
+          materia: true,
+          cursEscolar: true,
+          unitatsDidactiques: {
+            include: { situacionsAprenentatge: true },
+            orderBy: { ordre: 'asc' },
+          },
+          metodologies: true,
+          atencionsDiversitat: true,
+        },
+      })
+    })
+
+    return NextResponse.json(programacio, { status: 201 })
+  }
+
+  // Crear programació buida (sense copiar)
   const programacio = await prisma.programacio.create({
     data: {
       titol: data.titol,
       descripcio: data.descripcio,
-      cursEscolarId: data.cursEscolarId,
+      cursEscolarId: cursEscolar.id,
       nivellId: data.nivellId,
       materiaId: data.materiaId,
       autorId: session.user.id,

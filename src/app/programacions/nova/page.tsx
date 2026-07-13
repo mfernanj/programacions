@@ -5,18 +5,28 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 
+interface Programacio {
+  id: string
+  titol: string
+  descripcio: string | null
+  nivell: { id: string; nom: string }
+  materia: { id: string; nom: string }
+  cursEscolar: { anyInici: number; anyFi: number }
+}
+
 export default function NovaProgramacioPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [cursos, setCursos] = useState<any[]>([])
   const [nivells, setNivells] = useState<any[]>([])
   const [matèries, setMatèries] = useState<any[]>([])
+  const [programacions, setProgramacions] = useState<Programacio[]>([])
   const [formData, setFormData] = useState({
     titol: '',
     descripcio: '',
-    cursEscolarId: '',
+    cursEscolar: '2026-2027',
     nivellId: '',
     materiaId: '',
+    copiarDeId: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -25,25 +35,30 @@ export default function NovaProgramacioPage() {
   }, [status, router])
 
   useEffect(() => {
-    fetch('/api/cursos')
-      .then(res => res.json())
-      .then(setCursos)
     fetch('/api/nivells')
       .then(res => res.json())
       .then(setNivells)
+    fetch('/api/programacions')
+      .then(res => res.json())
+      .then(setProgramacions)
   }, [])
 
-  // Seleccionar el curs actiu per defecte
+  // Quan es selecciona una programació per copiar
   useEffect(() => {
-    if (cursos.length > 0 && !formData.cursEscolarId) {
-      const actiu = cursos.find(c => c.actiu)
-      if (actiu) {
-        setFormData(prev => ({ ...prev, cursEscolarId: actiu.id }))
-      } else {
-        setFormData(prev => ({ ...prev, cursEscolarId: cursos[0].id }))
+    if (formData.copiarDeId) {
+      const prog = programacions.find(p => p.id === formData.copiarDeId)
+      if (prog) {
+        setFormData(prev => ({
+          ...prev,
+          titol: prog.titol,
+          nivellId: prog.nivell.id,
+          materiaId: prog.materia.id,
+        }))
+        // Carregar matèries del nivell
+        setMatèries(prog.nivell.id ? nivells.find(n => n.id === prog.nivell.id)?.matèries || [] : [])
       }
     }
-  }, [cursos])
+  }, [formData.copiarDeId, programacions, nivells])
 
   const nivellSelected = (id: string) => {
     const nivell = nivells.find(n => n.id === id)
@@ -53,14 +68,26 @@ export default function NovaProgramacioPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.cursEscolarId) return
+    if (!formData.cursEscolar) return
     setSaving(true)
+
+    // Parsejar el curs escolar (format: "2026-2027")
+    const [anyInici, anyFi] = formData.cursEscolar.split('-').map(Number)
+    if (!anyInici || !anyFi) {
+      alert('Format de curs no vàlid. Usa: 2026-2027')
+      setSaving(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/programacions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          anyInici,
+          anyFi,
+        }),
       })
 
       if (res.ok) {
@@ -90,6 +117,31 @@ export default function NovaProgramacioPage() {
 
         <div className="mx-auto max-w-2xl rounded-lg bg-white p-8 shadow-md">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Selector de programació origen */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Copiar des de (opcional)
+              </label>
+              <select
+                value={formData.copiarDeId}
+                onChange={(e) => {
+                  setFormData({ ...formData, copiarDeId: e.target.value, titol: '', nivellId: '', materiaId: '' })
+                  setMatèries([])
+                }}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">-- No copiar --</option>
+                {programacions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.titol} ({p.nivell.nom} · {p.materia.nom})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Si selecciones una programació, s'omplirà automàticament amb la seva estructura
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Títol de la programació</label>
               <input
@@ -99,6 +151,7 @@ export default function NovaProgramacioPage() {
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="Programació de Matemàtiques - 1r ESO"
                 required
+                readOnly={!!formData.copiarDeId}
               />
             </div>
 
@@ -110,24 +163,21 @@ export default function NovaProgramacioPage() {
                 rows={3}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="Descripció opcional de la programació"
+                readOnly={!!formData.copiarDeId}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Curs escolar</label>
-              <select
-                value={formData.cursEscolarId}
-                onChange={(e) => setFormData({ ...formData, cursEscolarId: e.target.value })}
+              <input
+                type="text"
+                value={formData.cursEscolar}
+                onChange={(e) => setFormData({ ...formData, cursEscolar: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="2026-2027"
                 required
-              >
-                <option value="">Selecciona un curs</option>
-                {cursos.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.anyInici}/{c.anyFi} {c.actiu ? '(actiu)' : ''}
-                  </option>
-                ))}
-              </select>
+              />
+              <p className="mt-1 text-xs text-gray-500">Escriu els anys en format: anyInici-anyFi (ex: 2026-2027)</p>
             </div>
 
             <div>
@@ -137,6 +187,7 @@ export default function NovaProgramacioPage() {
                 onChange={(e) => nivellSelected(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 required
+                disabled={!!formData.copiarDeId}
               >
                 <option value="">Selecciona un nivell</option>
                 {nivells.map((n: any) => (
@@ -152,7 +203,7 @@ export default function NovaProgramacioPage() {
                 onChange={(e) => setFormData({ ...formData, materiaId: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 required
-                disabled={!formData.nivellId}
+                disabled={!formData.nivellId || !!formData.copiarDeId}
               >
                 <option value="">Selecciona una matèria</option>
                 {matèries.map((m: any) => (
