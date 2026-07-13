@@ -19,7 +19,12 @@ export async function GET(
       materia: { include: { blocs: { include: { criterisAvaluacio: true } } } },
       cursEscolar: true,
       autor: { select: { nom: true, email: true } },
-      unitatsDidactiques: { orderBy: { ordre: 'asc' } },
+      unitatsDidactiques: {
+        orderBy: { ordre: 'asc' },
+        include: {
+          situacionsAprenentatge: { orderBy: { ordre: 'asc' } },
+        },
+      },
       metodologies: true,
       atencionsDiversitat: true,
       versions: { orderBy: { numero: 'desc' }, take: 5 },

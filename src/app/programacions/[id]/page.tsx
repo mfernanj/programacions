@@ -11,6 +11,19 @@ const formatDateForInput = (value?: string | null) => {
   return value.slice(0, 10)
 }
 
+interface SituacioAprenentatge {
+  id: string
+  titol: string
+  descripcio?: string | null
+  competenciesEspecifiques: string
+  mesuresSuportsUniversals: string
+  activitatsInicials: string
+  activitatsDesenvolupament: string
+  activitatsEstructuracio: string
+  activitatsAplicacio: string
+  ordre: number
+}
+
 interface UnitatDidactica {
   id: string
   titol: string
@@ -23,6 +36,7 @@ interface UnitatDidactica {
   competencies: string | null
   activitats: string | null
   ordre: number
+  situacionsAprenentatge?: SituacioAprenentatge[]
 }
 
 interface Programacio {
@@ -56,6 +70,21 @@ export default function ProgramacioDetailPage() {
   const [formProgramacio, setFormProgramacio] = useState({
     titol: '', descripcio: '', estat: 'esborrany',
   })
+
+  // Estats per a situacions d'aprenentatge
+  const [editantSituacio, setEditantSituacio] = useState<string | null>(null)
+  const [situacioEnEdicio, setSituacioEnEdicio] = useState<Record<string, SituacioAprenentatge>>({})
+  const [novaSituacio, setNovaSituacio] = useState<Record<string, boolean>>({})
+  const [formSituacio, setFormSituacio] = useState<Record<string, {
+    titol: string
+    descripcio: string
+    competenciesEspecifiques: string
+    mesuresSuportsUniversals: string
+    activitatsInicials: string
+    activitatsDesenvolupament: string
+    activitatsEstructuracio: string
+    activitatsAplicacio: string
+  }>>({})
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/')
@@ -165,6 +194,112 @@ export default function ProgramacioDetailPage() {
       delete next[id]
       return next
     })
+  }
+
+  // Funcions per a situacions d'aprenentatge
+  const obrirNovaSituacio = (unitatId: string) => {
+    setNovaSituacio(prev => ({ ...prev, [unitatId]: true }))
+    setFormSituacio(prev => ({
+      ...prev,
+      [unitatId]: {
+        titol: '',
+        descripcio: '',
+        competenciesEspecifiques: '',
+        mesuresSuportsUniversals: '',
+        activitatsInicials: '',
+        activitatsDesenvolupament: '',
+        activitatsEstructuracio: '',
+        activitatsAplicacio: '',
+      },
+    }))
+  }
+
+  const tancarNovaSituacio = (unitatId: string) => {
+    setNovaSituacio(prev => ({ ...prev, [unitatId]: false }))
+    setFormSituacio(prev => {
+      const next = { ...prev }
+      delete next[unitatId]
+      return next
+    })
+  }
+
+  const afegirSituacio = async (unitatId: string) => {
+    const form = formSituacio[unitatId]
+    if (!form) return
+
+    const res = await fetch('/api/situacions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        unitatDidacticaId: unitatId,
+        ordre: (programacio?.unitatsDidactiques?.find(u => u.id === unitatId)?.situacionsAprenentatge?.length || 0) + 1,
+      }),
+    })
+
+    if (res.ok) {
+      tancarNovaSituacio(unitatId)
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+    } else {
+      alert('Error afegint la situació d\'aprenentatge')
+    }
+  }
+
+  const iniciarEdicioSituacio = (situacio: SituacioAprenentatge) => {
+    setEditantSituacio(situacio.id)
+    setSituacioEnEdicio(prev => ({ ...prev, [situacio.id]: situacio }))
+  }
+
+  const canviSituacioEnEdicio = (id: string, field: keyof SituacioAprenentatge, value: string | number) => {
+    setSituacioEnEdicio(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value,
+      },
+    }))
+  }
+
+  const desarSituacio = async (id: string) => {
+    const situacio = situacioEnEdicio[id]
+    if (!situacio) return
+
+    const res = await fetch(`/api/situacions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(situacio),
+    })
+
+    if (res.ok) {
+      setEditantSituacio(null)
+      setSituacioEnEdicio(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+    } else {
+      alert('Error desant la situació d\'aprenentatge')
+    }
+  }
+
+  const cancel·larEdicioSituacio = (id: string) => {
+    setEditantSituacio(null)
+    setSituacioEnEdicio(prev => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  const eliminarSituacio = async (id: string) => {
+    if (confirm('Estàs segur d\'eliminar aquesta situació d\'aprenentatge?')) {
+      await fetch(`/api/situacions/${id}`, { method: 'DELETE' })
+      const updated = await fetch(`/api/programacions/${params.id}`).then(r => r.json())
+      setProgramacio(updated)
+    }
   }
 
   const desarProgramacio = async () => {
@@ -494,6 +629,249 @@ export default function ProgramacioDetailPage() {
                         {unitat.criterisAvaluacio && <p className="md:col-span-2"><strong>Criteris d'avaluació:</strong> {unitat.criterisAvaluacio}</p>}
                       </div>
                     )}
+
+                    {/* Situacions d'Aprenentatge */}
+                    <div className="mt-4 border-t border-gray-200 pt-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className="font-medium text-gray-800">Situacions d'Aprenentatge</h4>
+                        <button
+                          onClick={() => obrirNovaSituacio(unitat.id)}
+                          className="rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
+                        >
+                          + Afegir SA
+                        </button>
+                      </div>
+
+                      {/* Formulari nova situació */}
+                      {novaSituacio[unitat.id] && (
+                        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
+                          <h5 className="mb-2 font-medium text-gray-700">Nova situació d'aprenentatge</h5>
+                          <div className="space-y-2">
+                            <input
+                              placeholder="Títol de la situació"
+                              value={formSituacio[unitat.id]?.titol || ''}
+                              onChange={e => setFormSituacio(prev => ({
+                                ...prev,
+                                [unitat.id]: { ...prev[unitat.id], titol: e.target.value }
+                              }))}
+                              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                            />
+                            <textarea
+                              placeholder="Descripció (opcional)"
+                              value={formSituacio[unitat.id]?.descripcio || ''}
+                              onChange={e => setFormSituacio(prev => ({
+                                ...prev,
+                                [unitat.id]: { ...prev[unitat.id], descripcio: e.target.value }
+                              }))}
+                              rows={2}
+                              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                            />
+                            <textarea
+                              placeholder="Competències específiques"
+                              value={formSituacio[unitat.id]?.competenciesEspecifiques || ''}
+                              onChange={e => setFormSituacio(prev => ({
+                                ...prev,
+                                [unitat.id]: { ...prev[unitat.id], competenciesEspecifiques: e.target.value }
+                              }))}
+                              rows={2}
+                              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                            />
+                            <textarea
+                              placeholder="Mesures i suports universals"
+                              value={formSituacio[unitat.id]?.mesuresSuportsUniversals || ''}
+                              onChange={e => setFormSituacio(prev => ({
+                                ...prev,
+                                [unitat.id]: { ...prev[unitat.id], mesuresSuportsUniversals: e.target.value }
+                              }))}
+                              rows={2}
+                              className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                            />
+                            <div className="grid gap-2">
+                              <label className="text-xs font-medium text-green-700">
+                                Activitats inicials (Què sabem?)
+                                <textarea
+                                  value={formSituacio[unitat.id]?.activitatsInicials || ''}
+                                  onChange={e => setFormSituacio(prev => ({
+                                    ...prev,
+                                    [unitat.id]: { ...prev[unitat.id], activitatsInicials: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                />
+                              </label>
+                              <label className="text-xs font-medium text-blue-700">
+                                Activitats de desenvolupament (Aprenem nous sabers)
+                                <textarea
+                                  value={formSituacio[unitat.id]?.activitatsDesenvolupament || ''}
+                                  onChange={e => setFormSituacio(prev => ({
+                                    ...prev,
+                                    [unitat.id]: { ...prev[unitat.id], activitatsDesenvolupament: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                />
+                              </label>
+                              <label className="text-xs font-medium text-yellow-700">
+                                Activitats d'estructuració (Què hem après?)
+                                <textarea
+                                  value={formSituacio[unitat.id]?.activitatsEstructuracio || ''}
+                                  onChange={e => setFormSituacio(prev => ({
+                                    ...prev,
+                                    [unitat.id]: { ...prev[unitat.id], activitatsEstructuracio: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                />
+                              </label>
+                              <label className="text-xs font-medium text-orange-700">
+                                Activitats d'aplicació (Apliquem el que hem après)
+                                <textarea
+                                  value={formSituacio[unitat.id]?.activitatsAplicacio || ''}
+                                  onChange={e => setFormSituacio(prev => ({
+                                    ...prev,
+                                    [unitat.id]: { ...prev[unitat.id], activitatsAplicacio: e.target.value }
+                                  }))}
+                                  rows={2}
+                                  className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                />
+                              </label>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => tancarNovaSituacio(unitat.id)} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700">Cancel·lar</button>
+                              <button onClick={() => afegirSituacio(unitat.id)} className="rounded-md bg-primary px-2 py-1 text-xs text-white hover:bg-primary-dark">Guardar</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Llista de situacions */}
+                      {unitat.situacionsAprenentatge && unitat.situacionsAprenentatge.length > 0 ? (
+                        <div className="space-y-3">
+                          {unitat.situacionsAprenentatge.map((situacio) => {
+                            const enEdicioSituacio = editantSituacio === situacio.id
+                            const situacioEdit = situacioEnEdicio[situacio.id] || situacio
+
+                            return (
+                              <div key={situacio.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                {enEdicioSituacio ? (
+                                  <div className="space-y-2">
+                                    <input
+                                      value={situacioEdit.titol}
+                                      onChange={(e) => canviSituacioEnEdicio(situacio.id, 'titol', e.target.value)}
+                                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm font-medium"
+                                    />
+                                    <textarea
+                                      value={situacioEdit.descripcio || ''}
+                                      onChange={(e) => canviSituacioEnEdicio(situacio.id, 'descripcio', e.target.value)}
+                                      rows={2}
+                                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                      placeholder="Descripció"
+                                    />
+                                    <textarea
+                                      value={situacioEdit.competenciesEspecifiques}
+                                      onChange={(e) => canviSituacioEnEdicio(situacio.id, 'competenciesEspecifiques', e.target.value)}
+                                      rows={2}
+                                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                      placeholder="Competències específiques"
+                                    />
+                                    <textarea
+                                      value={situacioEdit.mesuresSuportsUniversals}
+                                      onChange={(e) => canviSituacioEnEdicio(situacio.id, 'mesuresSuportsUniversals', e.target.value)}
+                                      rows={2}
+                                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                      placeholder="Mesures i suports universals"
+                                    />
+                                    <div className="grid gap-2">
+                                      <label className="text-xs font-medium text-green-700">
+                                        Activitats inicials (Què sabem?)
+                                        <textarea
+                                          value={situacioEdit.activitatsInicials}
+                                          onChange={(e) => canviSituacioEnEdicio(situacio.id, 'activitatsInicials', e.target.value)}
+                                          rows={2}
+                                          className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                        />
+                                      </label>
+                                      <label className="text-xs font-medium text-blue-700">
+                                        Activitats de desenvolupament
+                                        <textarea
+                                          value={situacioEdit.activitatsDesenvolupament}
+                                          onChange={(e) => canviSituacioEnEdicio(situacio.id, 'activitatsDesenvolupament', e.target.value)}
+                                          rows={2}
+                                          className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                        />
+                                      </label>
+                                      <label className="text-xs font-medium text-yellow-700">
+                                        Activitats d'estructuració
+                                        <textarea
+                                          value={situacioEdit.activitatsEstructuracio}
+                                          onChange={(e) => canviSituacioEnEdicio(situacio.id, 'activitatsEstructuracio', e.target.value)}
+                                          rows={2}
+                                          className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                        />
+                                      </label>
+                                      <label className="text-xs font-medium text-orange-700">
+                                        Activitats d'aplicació
+                                        <textarea
+                                          value={situacioEdit.activitatsAplicacio}
+                                          onChange={(e) => canviSituacioEnEdicio(situacio.id, 'activitatsAplicacio', e.target.value)}
+                                          rows={2}
+                                          className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                        />
+                                      </label>
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <button onClick={() => cancel·larEdicioSituacio(situacio.id)} className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700">Cancel·lar</button>
+                                      <button onClick={() => desarSituacio(situacio.id)} className="rounded-md bg-primary px-2 py-1 text-xs text-white hover:bg-primary-dark">Desa</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div className="mb-2 flex items-start justify-between">
+                                      <h5 className="font-medium text-gray-800">{situacio.titol}</h5>
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={() => iniciarEdicioSituacio(situacio)}
+                                          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                                        >
+                                          Edita
+                                        </button>
+                                        <button
+                                          onClick={() => eliminarSituacio(situacio.id)}
+                                          className="rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-700 hover:bg-red-100"
+                                        >
+                                          Elimina
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {situacio.descripcio && <p className="text-sm text-gray-600">{situacio.descripcio}</p>}
+                                    {situacio.competenciesEspecifiques && (
+                                      <p className="mt-2 text-sm"><strong>Competències:</strong> {situacio.competenciesEspecifiques}</p>
+                                    )}
+                                    {situacio.mesuresSuportsUniversals && (
+                                      <p className="mt-1 text-sm"><strong>Suports:</strong> {situacio.mesuresSuportsUniversals}</p>
+                                    )}
+                                    {situacio.activitatsInicials && (
+                                      <p className="mt-2 text-sm text-green-700"><strong>Activitats inicials:</strong> {situacio.activitatsInicials}</p>
+                                    )}
+                                    {situacio.activitatsDesenvolupament && (
+                                      <p className="mt-1 text-sm text-blue-700"><strong>Desenvolupament:</strong> {situacio.activitatsDesenvolupament}</p>
+                                    )}
+                                    {situacio.activitatsEstructuracio && (
+                                      <p className="mt-1 text-sm text-yellow-700"><strong>Estructuració:</strong> {situacio.activitatsEstructuracio}</p>
+                                    )}
+                                    {situacio.activitatsAplicacio && (
+                                      <p className="mt-1 text-sm text-orange-700"><strong>Aplicació:</strong> {situacio.activitatsAplicacio}</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400">No hi ha situacions d'aprenentatge encara.</p>
+                      )}
+                    </div>
                   </div>
                 )
               })}

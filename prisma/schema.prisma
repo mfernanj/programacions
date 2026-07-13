@@ -127,6 +127,25 @@ model UnitatDidactica {
   ordre            Int
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  situacionsAprenentatge SituacioAprenentatge[]
+}
+
+model SituacioAprenentatge {
+  id                       String   @id @default(cuid())
+  titol                    String
+  descripcio               String?
+  competenciesEspecifiques String   // Competències específiques del currículum
+  mesuresSuportsUniversals String   // Mesures i suports universals (DUA)
+  activitatsInicials       String   // "Què sabem?"
+  activitatsDesenvolupament String  // "Aprenem nous sabers"
+  activitatsEstructuracio  String   // "Què hem après?"
+  activitatsAplicacio      String   // "Apliquem el que hem après"
+  unitatDidacticaId        String
+  unitatDidactica          UnitatDidactica @relation(fields: [unitatDidacticaId], references: [id], onDelete: Cascade)
+  ordre                    Int
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model Metodologia {
